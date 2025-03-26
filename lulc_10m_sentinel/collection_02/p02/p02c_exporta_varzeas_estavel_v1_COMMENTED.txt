@@ -1,0 +1,73 @@
+// Define the Atlantic Forest boundary
+var limite_MA = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-48.593359954293625, -30.678347823900353],
+          [-47.275000579293625, -25.525376684152373],
+          [-40.595313079293625, -23.284530667538736],
+          [-33.915625579293625, -6.580343714417967],
+          [-35.453711516793625, -4.217995607905081],
+          [-44.198828704293625, -17.856203449528717],
+          [-50.483008391793625, -17.52126295946964],
+          [-55.712500579293625, -21.74193426005608],
+          [-55.492774016793625, -29.72888025446976]]]);
+
+// Define the output version
+var versao_out = '1';
+
+// Define the version of the points
+var versao_pt = '1';
+
+// Define the year
+var ano = 2020;
+
+// Define the output directory
+var dirout = 'projects/mapbiomas-workspace/AMOSTRAS/S2_2024/MATA_ATLANTICA/';
+
+// Load the HAND images
+var hand30_100 = ee.ImageCollection('users/gena/global-hand/hand-100').mosaic().rename(['hand100']);
+
+// Import the palettes module
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+// Define the visualization parameters
+var vis = {
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+
+// Define the biome
+var bioma = "MATAATLANTICA";
+
+// Load the stable varzea image
+var varzea_estavel = ee.Image('projects/mapbiomas-workspace/AMOSTRAS/S2_2024/MATA_ATLANTICA/MA_varzea_estaveis16a22_colS2_v1')
+
+// Print the stable varzea image
+print(varzea_estavel)
+
+// Load the stable image and remap classes to 21
+var mapa_estavel_S2 = ee.Image('projects/mapbiomas-workspace/AMOSTRAS/S2_2024/MATA_ATLANTICA/MA_amostras_estaveis16a22_colS2_v1').remap(
+  [3,4,12,29,21,22,33],[21,21,21,21,21,21,21])
+
+// Blend the stable image with the stable varzea image and rename the band
+var varzea_sample = mapa_estavel_S2.blend(varzea_estavel).rename(['reference'])
+
+// Add the blended image to the map
+Map.addLayer(varzea_sample,vis,'varzea_sample')
+
+// Create a stratified sample of the blended image for varzea and agriculture
+var training = varzea_sample.stratifiedSample({
+    'numPoints': 3000,
+    'classBand': 'reference',
+    'region': limite_MA,
+    'classValues': [11,21],
+    'classPoints': [2000,3000],
+    'scale': 10,
+    'tileScale': 4,
+    'geometries': true
+});
+
+// Set the year as a property for each feature in the sample
+training = training.map(function (feat) {return feat.set('year',ano)})
+
+// Export the training sample collection to an asset
+Export.table.toAsset(training, 'varzea_estavel_v'+versao_out, dirout + 'varzea_estavel_v'+versao_out);

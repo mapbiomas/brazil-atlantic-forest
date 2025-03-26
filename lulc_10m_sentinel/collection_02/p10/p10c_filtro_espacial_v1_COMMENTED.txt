@@ -1,0 +1,126 @@
+var geometry = 
+    /* color: #d63000 */
+    /* shown: false */
+    ee.Geometry.Polygon(
+        [[[-56.05851880152852, -30.04613371617718],
+          [-49.20305005152852, -30.841736663987348],
+          [-41.46867505152852, -23.861579784474333],
+          [-34.17375317652852, -8.163484389272043],
+          [-32.256638918716014, -3.7226814467955944],
+          [-35.66789380152852, -4.582835761516412],
+          [-49.07121411402852, -16.947367124654484],
+          [-56.10246411402852, -21.01873071079243]]]);
+
+// Define the biome for processing
+var bioma = "MATAATLANTICA";
+
+// Define input and output version numbers
+var vesion_in = '79';
+var versao_out = '80';
+
+// Define minimum connected pixel threshold
+var min_connect_pixel = 25;
+
+// Define input and output prefixes for asset names
+var prefixo_in = 'MA_S2_p10b_v';
+var prefixo_out = 'MA_S2_p10c_v';
+
+// Define output directory for assets
+var dirout = 'projects/mapbiomas-workspace/COLECAO9/classificacao-ma-S2/';
+
+// Load the input classification image
+var class4GAP = ee.Image(dirout+prefixo_in+vesion_in);//.mask(bioma250mil_MA)
+print(class4GAP);
+
+////*************************************************************
+// Do not Change from these lines
+////*************************************************************
+
+// Load the biomes image
+//var biomes = ee.Image('projects/mapbiomas-workspace/AUXILIAR/biomas-raster-41');
+// Mask the biomes image to select the target biome
+//var bioma250mil_MA = biomes.mask(biomes.eq(2));
+// Add the masked biome image to the map
+//Map.addLayer(bioma250mil_MA,{'palette': 'ccffcc'}, 'bioma250mil_MA', false)
+
+// Load the palettes module
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+// Define the visualization parameters for the classification image
+var pal = palettes.get('classification2');
+var vis = {
+      bands: 'classification_2021',
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+    };
+
+// Define the visualization parameters for the output image
+var vis2 = {
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+
+// Add the input classification image to the map
+Map.addLayer(class4GAP, vis, 'class4GAP');
+
+// Define the years to process
+var anos = ['2016','2017','2018','2019','2020','2021', '2022','2023'];
+//var anos = ['1985']
+
+// Loop through each year
+for (var i_ano=0;i_ano<anos.length; i_ano++){  
+  // Get the current year
+  var ano = anos[i_ano]; 
+  
+  // Select the classification band for the current year
+  var class_an0 = class4GAP.select('classification_'+ano).remap(
+                          // Remap the classification values
+                          [3,4, 9,11,12,49,50,29,19,21,22,25,33],
+                          [3,4,21,11,12,49,50,29,21,21,22,25,33])
+                          // Rename the band
+                          .rename('classification_'+ano)
+  
+  // Calculate the mode of the classification values within a 3x3 neighborhood
+  var moda = class_an0.focal_mode(3, 'square', 'pixels')
+  
+  // Mask the mode image based on the connected pixel threshold
+  moda = moda.mask(class4GAP.select('classification_'+ano+'_conn').lte(min_connect_pixel))
+  
+  // Blend the original classification image with the mode image
+  var class_out = class_an0.blend(moda)
+  
+  // Combine the output images for each year
+  if (i_ano == 0){ var class_outTotal = class_out }  
+  else {class_outTotal = class_outTotal.addBands(class_out); }
+}
+
+// Print the combined output image
+print(class_outTotal)
+
+// Add the combined output image to the map
+Map.addLayer(class_outTotal, vis, 'class_outTotal');
+// Map.addLayer(class_out2, vis, 'class_out2');
+
+// Set metadata for the output image
+class_outTotal = class_outTotal
+.set('territory', 'BRAZIL')
+.set('biome', 'MATAATLANTICA')
+.set('source', 'arcplan')
+.set('version', versao_out)
+.set('year', versao_out)
+.set('collection_id', 2)
+
+// Export the output image to an asset
+Export.image.toAsset({
+    'image': class_outTotal,
+    'description': prefixo_out+versao_out,
+    'assetId': dirout+prefixo_out+versao_out,
+    'pyramidingPolicy': {
+        '.default': 'mode'
+    },
+    'region': geometry,
+    'scale': 10,
+    'maxPixels': 1e13
+});
