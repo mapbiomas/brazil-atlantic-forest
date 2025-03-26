@@ -1,0 +1,262 @@
+var limite = 
+    /* color: #98ff00 */
+    /* shown: false */
+    ee.FeatureCollection(
+        [ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-52.7072254283902, -31.32064763326089],
+                  [-49.6749988658902, -31.283098920578677],
+                  [-47.3458973033902, -26.041823353271656],
+                  [-41.7208973033902, -23.930877307797985],
+                  [-38.4689441783902, -19.067147651228467],
+                  [-38.2052723033902, -14.35470340835599],
+                  [-34.4259754283902, -7.585602909252507],
+                  [-35.0412098033902, -5.183782002028966],
+                  [-37.1505848033902, -4.483161879188651],
+                  [-55.76651369192312, -20.999944107814034],
+                  [-56.60147462942312, -30.180782039302326]]]),
+            {
+              "system:index": "0"
+            })]),
+    sul = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-56.73790027778151, -30.178994832529103],
+          [-52.60704090278151, -31.387082033070502],
+          [-49.57481434028151, -31.312022639744637],
+          [-46.16905262153151, -24.022036043479737],
+          [-49.39903309028151, -23.095552732239117],
+          [-55.85899402778151, -23.216767473658706]]]),
+    centro = /* color: #98ff00 */ee.Geometry.Polygon(
+        [[[-49.545685428128074, -23.44573663584148],
+          [-46.579376834378074, -24.549748269795455],
+          [-41.811310428128074, -24.06916325242335],
+          [-38.779083865628074, -19.21015380412059],
+          [-38.625275271878074, -15.308163104890179],
+          [-48.534943240628074, -15.0961256429518],
+          [-55.94688465278151, -21.16203168695004],
+          [-55.99082996528151, -23.458866815510746]]]),
+    norte = /* color: #0b4a8b */ee.Geometry.Polygon(
+        [[[-48.95507390684883, -15.468947277447153],
+          [-38.18847234434883, -15.638291336453737],
+          [-38.10058171934883, -14.322318000146922],
+          [-33.96972234434883, -7.552467494326463],
+          [-34.93651921934883, -4.318386574095085],
+          [-37.04589421934883, -4.0992527070126945]]]);
+
+// Define a variable to control whether to collect data or not.
+var coleta = false;   // true or false
+
+// Define an array of years to process.
+var anos = [2016,2017,2018,2019,2020,2021,2022,2023]
+
+// If collecting data, only process the year 2023.
+if (coleta) {var anos = [2023]}
+
+// Define the number of trees for the Random Forest classifier.
+var RFtrees = 100;
+
+// If collecting data, use 20 trees instead.
+if (coleta) {var RFtrees = 20}
+
+// Define output version and other parameters.
+var versao_out = 2;
+var versao_pt = 'S2_v1';
+var versao_estavel = '3'
+var dir_pt_in = 'projects/mapbiomas-workspace/AMOSTRAS/col9/MATA_ATLANTICA/teste/';
+
+// Load the biomes data.
+var bioma250mil = ee.FeatureCollection('projects/mapbiomas-workspace/AUXILIAR/biomas_IBGE_250mil');
+var bioma250mil_MA_vetor = bioma250mil.filterMetadata('Bioma','equals', 'Mata Atlântica');
+var biomes = ee.Image('projects/mapbiomas-workspace/AUXILIAR/biomas-raster-41');
+var bioma250mil_MA = biomes.mask(biomes.eq(2));
+// Add the bioma layer to the map.
+Map.addLayer(bioma250mil_MA,{},'layer bioma',false)
+
+// Load the palettes module.
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+// Define visualization parameters for the classification.
+var vis = {
+    'min': 0,
+    'max': 62,
+    'palette': palettes.get('classification7')
+};
+
+// Define visualization parameters for the median composite.
+var visParMedian2 = {bands: ['swir1_median', 'nir_median', 'red_median'],gain: [0.08, 0.06, 0.2],gamma: 0.85}
+
+// Define the biome name.
+var bioma = "MATAATLANTICA";
+
+// Define the output directory.
+var dirout = 'projects/mapbiomas-workspace/COLECAO7/classificacao-ma/';
+
+// Load the S2 cluster image.
+var S2_cluster = ee.Image('projects/mapbiomas-workspace/AMOSTRAS/S2_2024/MATA_ATLANTICA/mosaicos_MA_S2_clusters_2106_2023')
+
+// Load the HAND image.
+var hand30_100 = ee.ImageCollection('users/gena/global-hand/hand-100').mosaic().rename(['hand100']);
+
+// Define a function to shuffle a feature collection.
+var shuffle = function (collection, seed) {
+    // Add a random column to the collection.
+    collection = collection.randomColumn('random', seed || 1)
+        // Sort the collection by the random column.
+        .sort('random', true)
+        // Map over the collection and set a new ID based on the random value.
+        .map(function (feature) {
+                var rescaled = ee.Number(feature.get('random')).multiply(1000000000).round();
+                return feature.set('new_id', rescaled)});
+    // Get a list of the new IDs.
+    var randomIdList = ee.List(collection.reduceColumns(ee.Reducer.toList(), ['new_id']).get('list'));
+    // Create a list of sequential IDs.
+    var sequentialIdList = ee.List.sequence(1, collection.size());
+    // Remap the collection using the new IDs.
+    var shuffled = collection.remap(randomIdList, sequentialIdList, 'new_id');
+    // Return the shuffled collection.
+    return shuffled;
+};
+
+// Define visualization parameters for the HAND image.
+var vis_hand = {
+    'min': 0,
+    'max': 60,
+    'palette': 'blue,white,green,orange,red,brown'
+};
+
+// Loop through each year in the array.
+for (var i_ano=0;i_ano<anos.length; i_ano++){
+  // Get the current year.
+  var ano = anos[i_ano];
+
+  // Define the asset path for the Sentinel 2 mosaics.
+  var asset = 'projects/mapbiomas-mosaics/assets/SENTINEL/BRAZIL/mosaics-3';
+  // Define the band names to use for classification.
+  var bandNames = ee.List([
+  'hand100','brightness_median_wet','gcvi_median_wet','mbi_median_wet','wetness_median','red_edge_2_median_wet','ndvi_median_wet','swir2_median_dry','swir2_median_wet','red_edge_3_median_wet','green_median','red_edge_2_stdDev','ri_median_wet','bsi_median','swir1_median_dry','evi_median','spri_median_1','red_median_dry','iia_median_wet','ratio_median_dry','cvi_median_dry','gemi_median_wet','red_edge_1_median_dry','rvi_median_wet','longitude','red_edge_4_median','red_median','brightness_median_dry','nir_median_wet','gvmi_median_dry_1','cvi_median','green_median_wet','spri_median_wet','brightness_median','gcvi_median','nir_stdDev','rvi_median_1','osavi_median_wet','msi_median_dry','ratio_median_wet','nir_median','swir1_median','awei_median_wet','avi_median_wet','red_edge_4_median_wet','swir2_stdDev','ratio_median','ndwi_median_dry','swir2_median','bsi_median_2','wetness_median_wet','avi_median_dry','green_median_dry','avi_median','gvmi_median_wet_1','red_edge_3_stdDev','iia_median','ndvi_median_dry','red_edge_1_median_wet','red_median_wet','lswi_median_dry',
+  // ALL 143 BANDS TO FEATURE IMPORTANCE
+  //    'hand100','blue_median','afvi_median','afvi_median_dry','afvi_median_wet','avi_median','avi_median_dry','avi_median_wet','awei_median','awei_median_dry','awei_median_wet','blue_median_dry','blue_median_wet','blue_stdDev','brba_median','brba_median_dry','brba_median_wet','brightness_median','brightness_median_dry','brightness_median_wet','bsi_median','bsi_median_1','bsi_median_2','clusters_2023','co2flux_median','cvi_median','cvi_median_dry','cvi_median_wet','dswi5_median','dswi5_median_dry','dswi5_median_wet','evi_median','evi_median_dry','evi_median_wet','gcvi_median','gcvi_median_dry','gcvi_median_wet','gemi_median','gemi_median_dry','gemi_median_wet','gli_median','gli_median_dry','gli_median_wet','green_median','green_median_dry','green_median_texture','green_median_texture_2023','green_median_wet','green_min','green_stdDev','gvmi_median','gvmi_median_1','gvmi_median_dry','gvmi_median_dry_1','gvmi_median_wet','gvmi_median_wet_1','iia_median','iia_median_dry','iia_median_wet','lai_median','latitude','longitude','lswi_median','lswi_median_dry','lswi_median_wet','mbi_median','mbi_median_dry','mbi_median_wet','msi_median','msi_median_dry','msi_median_wet','nddi_median','nddi_median_dry','nddi_median_wet','ndvi_median','ndvi_median_dry','ndvi_median_dry_2023','ndvi_median_wet','ndvi_median_wet_2023','ndwi_median','ndwi_median_2023','ndwi_median_dry','ndwi_median_wet','nir_median','nir_median_contrast','nir_median_dry','nir_median_dry_contrast','nir_median_wet','nir_stdDev','osavi_median','osavi_median_dry','osavi_median_wet','ratio_median','ratio_median_dry','ratio_median_wet','red_edge_1_median','red_edge_1_median_dry','red_edge_1_median_wet','red_edge_1_stdDev','red_edge_2_median','red_edge_2_median_dry','red_edge_2_median_wet','red_edge_2_stdDev','red_edge_3_median','red_edge_3_median_dry','red_edge_3_median_wet','red_edge_3_stdDev','red_edge_4_median','red_edge_4_median_dry','red_edge_4_median_wet','red_edge_4_stdDev','red_median','red_median_contrast','red_median_dry','red_median_dry_contrast','red_median_wet','red_min','red_stdDev','ri_median','ri_median_dry','ri_median_wet','rvi_median','rvi_median_1','rvi_median_wet','shape_median','shape_median_dry','shape_median_wet','spri_median','spri_median_1','spri_median_wet','swir1_median','swir1_median_dry','swir1_median_wet','swir1_stdDev','swir2_median','swir2_median_dry','swir2_median_wet','swir2_stdDev','ui_median','ui_median_dry','ui_median_wet','wetness_median','wetness_median_dry','wetness_median_wet',
+  ])
+
+  // Filter the Sentinel 2 collection by version, year, and biome.
+  var collection = ee.ImageCollection(asset)
+        .filter(ee.Filter.eq('version', '3'))
+        .filter(ee.Filter.eq('year', ano))
+        .filter(ee.Filter.inList('biome', [
+            'MATAATLANTICA',
+        ])); 
+
+  // Create a mosaic of the filtered collection.
+  var mosaicoTotal = collection.mosaic()
+
+  // Add indices for Caatinga.
+  var addIndexCaatinga = require('users/marcosrosaUSP/MapBiomas_col9_MataAtlan:Mata_Atlantica_SENTINEL2/processa_Bandas_Sentinel2_CAATINGA');
+  mosaicoTotal = addIndexCaatinga.get(mosaicoTotal);
+
+  // Add HAND and S2 cluster bands to the mosaic.
+  mosaicoTotal = mosaicoTotal.addBands(hand30_100).addBands(S2_cluster.select([
+    'clusters_'+ano, 'ndvi_median_dry_'+ano,'ndvi_median_wet_'+ano,'ndwi_median_'+ano, 'green_median_texture_'+ano
+    ]))
+    
+  // Add the mosaic to the map.
+  Map.addLayer(mosaicoTotal, {'bands': ['swir1_median', 'nir_median', 'red_median'],
+    'gain': [0.08, 0.07, 0.2],'gamma': 0.85}, 'Sentinel 2 '+ano, false);
+  // Print the mosaic.
+  //print(mosaicoTotal)
+  // Load the training data.
+  //var BDamostras = ee.FeatureCollection('projects/mapbiomas-workspace/AMOSTRAS/col9/MATA_ATLANTICA/teste/REGIONs_'+regiaoID+'_'+ano)
+  var BDamostras = ee.FeatureCollection('projects/mapbiomas-workspace/AMOSTRAS/S2_2024/MATA_ATLANTICA/varzea_train_v1_'+ano)
+  //                  .filterMetadata('reg_id', 'equals', regiaoID)
+          
+  // Filter the training data by reference value.
+  var BDsav = BDamostras.filterMetadata("reference", "equals", 11)//.limit(100)
+  var BDres = BDamostras.filterMetadata("reference", "equals", 21)
+
+  // Merge the filtered training data.
+  var training = BDsav.merge(BDres)
+
+  // Train a Random Forest classifier.
+  var classifierRF = ee.Classifier.smileRandomForest({numberOfTrees: RFtrees, variablesPerSplit:1}).train(training, 'reference', bandNames);
+
+  // Print the classifier explanation if collecting data.
+  if (coleta) {print(classifierRF.explain())}
+
+  // Train a Gradient Tree Boost classifier.
+  var classifierGTB = ee.Classifier.smileGradientTreeBoost({numberOfTrees: 30, shrinkage: 0.1, samplingRate: 0.8, loss: 'LeastSquares'}).train(training, 'reference', bandNames);
+
+  // Print the classifier explanation.
+  // print(classifier.explain())
+
+  // Classify the mosaic using the Random Forest classifier.
+  var classifiedRF = mosaicoTotal.classify(classifierRF).mask(mosaicoTotal.select('blue_median'));
+
+  // Classify the mosaic using the Gradient Tree Boost classifier.
+  var classifiedGTB = mosaicoTotal.classify(classifierGTB).mask(mosaicoTotal.select('blue_median'));
+
+  // Rename the classification band.
+  classifiedRF = classifiedRF.select(['classification'],['classification_'+ano]).toInt8()
+  //classifiedGTB = classifiedGTB.select(['classification'],['classification_'+ano]).clip(limite.geometry()).toInt8()
+
+  // Add the classified images to the map if collecting data.
+  if (coleta) {  
+    Map.addLayer(classifiedRF, vis, 'RF'+ano+"_"+regiaoID, false);
+    // Map.addLayer(classifiedGTB, vis, 'GTB'+ano+"_"+regiaoID, false);
+  }
+
+  // Combine the classified images for all years.
+  if (i_ano == 0){ var classified16a23RF = classifiedRF;}//  var classified16a23GTB = classifiedGTB}  
+  else {classified16a23RF = classified16a23RF.addBands(classifiedRF);}// classified16a23GTB = classified16a23GTB.addBands(classifiedGTB)}
+}
+
+// Print the combined classified image.
+print(classified16a23RF)
+
+// If collecting data, do nothing.
+if (coleta) {}
+   // Otherwise, export the classified image to an asset.
+   else 
+   {
+     // Set metadata for the classified image.
+     classified16a23RF = classified16a23RF
+     .set('territory', 'BRAZIL')
+     .set('biome', 'MATA ATÂNTICA')
+     .set('source', 'arcplan')
+     .set('version', '1')
+     .set('collection_id',versao_out)
+
+    // Export the classified image to an asset for the south region.
+    Export.image.toAsset({
+       "image": classified16a23RF.toInt8(),
+       "description": 'varzea-'+'RF_SENTINEL2_sul_v'+versao_out,
+       "assetId": dirout + 'varzea-'+'RF_SENTINEL2_SUL_v'+versao_out,
+       "scale": 10,
+       "pyramidingPolicy": {
+           '.default': 'mode'
+       },
+       "maxPixels": 1e13,
+       "region": sul
+     });    
+    // Export the classified image to an asset for the central region.
+    Export.image.toAsset({
+       "image": classified16a23RF.toInt8(),
+       "description": 'varzea-'+'RF_SENTINEL2_centro_v'+versao_out,
+       "assetId": dirout + 'varzea-'+'RF_SENTINEL2_CENTRO_v'+versao_out,
+       "scale": 10,
+       "pyramidingPolicy": {
+           '.default': 'mode'
+       },
+       "maxPixels": 1e13,
+       "region": centro
+     });        
+     // Export the classified image to an asset for the north region.
+     Export.image.toAsset({
+       "image": classified16a23RF.toInt8(),
+       "description": 'varzea-'+'RF_SENTINEL2_norte_v'+versao_out,
+       "assetId": dirout + 'varzea-'+'RF_SENTINEL2_NORTE_v'+versao_out,
+       "scale": 10,
+       "pyramidingPolicy": {
+           '.default': 'mode'
+       },
+       "maxPixels": 1e13,
+       "region": norte
+     });    
+}

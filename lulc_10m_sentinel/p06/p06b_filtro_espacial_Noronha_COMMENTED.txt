@@ -1,0 +1,121 @@
+var limite = 
+    /* color: #d6ccca */
+    /* shown: false */
+    ee.Geometry.Polygon(
+        [[[-32.39663074204338, -3.785031245924777],
+          [-32.43739744964606, -3.8071275947681587],
+          [-32.4757632558307, -3.8319627521753064],
+          [-32.50331621620784, -3.861421741315502],
+          [-32.506837346047284, -3.889852450971306],
+          [-32.48057341026156, -3.9109184787539504],
+          [-32.442635991066815, -3.90321108689405],
+          [-32.40761564327281, -3.8985872916682607],
+          [-32.37671638706442, -3.8720402605800093],
+          [-32.35491578246739, -3.8172315928217264],
+          [-32.35783527085197, -3.794623261419398],
+          [-32.371739949942274, -3.7840037269381845]]]);
+
+// Define the biome name
+var bioma = "MATAATLANTICA";
+
+// Define the input and output versions
+var vesion_in = '20';
+var versao_out = '21';
+
+// Define the minimum number of connected pixels
+var min_connect_pixel = 25;
+
+// Define the input and output prefixes
+var prefixo_in = 'FNoronha_p05_v';
+var prefixo_out = 'FNoronha_p06_v';
+
+// Define the output directory
+var dirout = 'projects/mapbiomas-workspace/COLECAO9/classificacao-ma-S2/';
+
+// Load the classification image from the input version
+var class4GAP = ee.Image('projects/mapbiomas-workspace/COLECAO7/classificacao-ma/FNoronha-RF_SENTINEL2_v'+vesion_in)//.mask(bioma250mil_MA)
+print(class4GAP);
+
+////*************************************************************
+// Do not Change from these lines
+////*************************************************************
+
+//var biomes = ee.Image('projects/mapbiomas-workspace/AUXILIAR/biomas-raster-41');
+//var bioma250mil_MA = biomes.mask(biomes.eq(2));
+//Map.addLayer(bioma250mil_MA,{'palette': 'ccffcc'}, 'bioma250mil_MA', false)
+
+// Load the palettes module
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+// Define the palette for the classification image
+var pal = palettes.get('classification2');
+
+// Define the visualization parameters for the classification image
+var vis = {
+      bands: 'classification_2023',
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+    };
+
+// Define the visualization parameters for the output image
+var vis2 = {
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+
+// Add the classification image to the map
+Map.addLayer(class4GAP, vis, 'class4GAP');
+
+// Define the years to process
+var anos = ['2023'];
+//var anos = ['1985']
+
+// Loop through the years
+for (var i_ano=0;i_ano<anos.length; i_ano++){  
+  // Get the current year
+  var ano = anos[i_ano]; 
+
+  // Apply a focal mode filter to the classification image
+  var moda = class4GAP.select('classification_'+ano).focal_mode(3, 'square', 'pixels');
+
+  // Mask the image based on the minimum number of connected pixels
+  moda = moda.mask(class4GAP.select('classification_'+ano+'_conn').lte(min_connect_pixel));
+
+  // Blend the original classification image with the filtered image
+  var class_out = class4GAP.select('classification_'+ano).blend(moda);
+
+  // Combine the output images for each year
+  if (i_ano == 0){ var class_outTotal = class_out }  
+  else {class_outTotal = class_outTotal.addBands(class_out); }
+}
+
+// Print the output image
+print(class_outTotal);
+
+// Add the output image to the map
+Map.addLayer(class_outTotal, vis, 'class_outTotal');
+// Map.addLayer(class_out2, vis, 'class_out2');
+
+// Set the metadata for the output image
+class_outTotal = class_outTotal
+.set('territory', 'BRAZIL')
+.set('biome', 'MATA ATÂNTICA')
+.set('source', 'arcplan')
+.set('version', versao_out)
+//.set('year', versao_out)
+.set('collection_id', 7.1);
+
+// Export the output image to an asset
+Export.image.toAsset({
+    'image': class_outTotal,
+    'description': prefixo_out+versao_out,
+    'assetId': dirout+prefixo_out+versao_out,
+    'pyramidingPolicy': {
+        '.default': 'mode'
+    },
+    'region': limite,
+    'scale': 10,
+    'maxPixels': 1e13
+});
