@@ -1,0 +1,444 @@
+var limite_MA2 = 
+    /* color: #d63000 */
+    /* shown: false */
+    ee.Geometry.Polygon(
+        [[[-49.247700941636595, -29.022523383158095],
+          [-48.7353515625, -28.806173508854762],
+          [-48.14208984375, -27.537500308359466],
+          [-48.39445536421073, -26.590423365831768],
+          [-48.328857421875, -25.809781975840405],
+          [-47.52238508646195, -24.961533378966568],
+          [-46.702880859375, -24.467150664738988],
+          [-46.201591895409365, -24.133590011676564],
+          [-45.10986328125, -24.016361823963027],
+          [-44.71435546875, -23.52370005882413],
+          [-43.83867478555652, -23.28797276201207],
+          [-41.868896484375, -23.099944212531387],
+          [-41.53739054012016, -22.54787404186189],
+          [-40.858154296875, -22.055096050575845],
+          [-40.813241260469226, -21.30385052235623],
+          [-40.341796875, -20.745840238902247],
+          [-39.98919871239127, -19.972814500963008],
+          [-39.70458984375, -19.73568357862943],
+          [-39.6146087043204, -19.29822872014044],
+          [-39.57324612304177, -18.26836581577437],
+          [-39.0838623046875, -17.748686651728793],
+          [-39.055713575251104, -17.0336668879567],
+          [-38.7432861328125, -15.866241564066616],
+          [-38.93015197494924, -14.712551816040117],
+          [-38.73779296875, -13.336175186494915],
+          [-38.221435546875, -13.100879969526476],
+          [-36.826171875, -10.908830155722121],
+          [-35.4638671875, -9.633245727691198],
+          [-34.793701171875, -8.461505694920898],
+          [-34.683837890625, -7.079088026071719],
+          [-35.233154296875, -5.0800010938086215],
+          [-35.6396484375, -5.101887070062321],
+          [-35.60086706035952, -5.614547055897661],
+          [-35.441686579377, -6.423044456643987],
+          [-35.8154296875, -7.547655601241832],
+          [-35.77628458120148, -7.890311935689954],
+          [-36.8096923828125, -8.933913624704099],
+          [-37.452392578125, -10.093262015308474],
+          [-38.3148193359375, -11.280773781192053],
+          [-39.5123291015625, -11.78670268848142],
+          [-40.616455078125, -13.2399454992863],
+          [-40.6439208984375, -14.243086862716888],
+          [-41.396484375, -14.838611553384807],
+          [-41.90185546875, -14.966013251567153],
+          [-42.5390625, -15.802824941413187],
+          [-42.550048828125, -17.14603949574698],
+          [-43.890380859375, -18.594188856740427],
+          [-43.7255859375, -19.575317892869442],
+          [-44.670737078228704, -19.268247267184112],
+          [-45.0439453125, -19.414792438099557],
+          [-45.46142578125, -19.91138351415555],
+          [-46.021728515625, -20.7047387200555],
+          [-46.966552734375, -20.365227537412434],
+          [-47.098388671875, -19.963022929830807],
+          [-47.493896484375, -19.611543503814232],
+          [-47.96630859375, -19.559790136497398],
+          [-48.416748046875, -19.559790136497398],
+          [-49.04296875, -19.694314241825747],
+          [-49.998779296875, -19.373340713364044],
+          [-49.493408203125, -19.2489223284628],
+          [-47.757568359375, -19.020577110966794],
+          [-47.98828125, -18.323240460443383],
+          [-48.62548828125, -17.75914975540014],
+          [-49.207763671875, -17.790535393588964],
+          [-51.119384765625, -18.417078658661257],
+          [-51.85546875, -20.097206227083888],
+          [-52.88818359375, -21.841104749065032],
+          [-54.33837890625, -21.5041855007784],
+          [-55.294189453125, -21.80030805097258],
+          [-55.4150390625, -23.23125092389778],
+          [-55.458984375, -24.12670195868167],
+          [-54.6240234375, -23.93605491459982],
+          [-54.404296875, -24.39713301739104],
+          [-54.744873046875, -25.681137335685307],
+          [-53.96484375, -25.770213848960246],
+          [-53.85498046875, -26.95145308349825],
+          [-54.9755859375, -27.498526722798296],
+          [-55.47821044921875, -28.069556808283593],
+          [-55.14389607787536, -28.294019340320542],
+          [-54.843276751098756, -28.455948569287795],
+          [-54.47755233547173, -28.574911416473032],
+          [-54.08786740173093, -28.686648423642083],
+          [-53.37158203125, -29.046565622728846],
+          [-53.743743896484375, -29.424048845483828],
+          [-53.89471068932722, -29.476890814513165],
+          [-53.96333274830807, -29.516463876552184],
+          [-53.985933193466906, -29.466627605546755],
+          [-54.01399085963391, -29.362974979934112],
+          [-54.0957995760449, -29.356021030068643],
+          [-54.154222913515014, -29.314313841353393],
+          [-54.23853854957156, -29.313083872479314],
+          [-54.34931514088896, -29.360217477461482],
+          [-54.37451966390222, -29.251873401377896],
+          [-54.41987650022799, -29.22165031302486],
+          [-54.561629026807395, -29.255956269857826],
+          [-54.62100646401336, -29.232741355021034],
+          [-54.69684636444414, -29.21513553302705],
+          [-54.80832142057618, -29.211841387289443],
+          [-54.86783664015559, -29.201620760910515],
+          [-54.861083387822305, -29.286939284390016],
+          [-54.936762801395275, -29.29077843021244],
+          [-54.934557778030864, -29.317890891762687],
+          [-54.89637833995612, -29.355389471176345],
+          [-54.918606622151415, -29.380926390970743],
+          [-54.971869817666686, -29.365728890813415],
+          [-55.011401674227045, -29.360099098278926],
+          [-55.0234626088652, -29.31855224246986],
+          [-55.11566162109375, -29.29358522654161],
+          [-55.1383134470135, -29.344453559309528],
+          [-55.169219970703125, -29.438401595657513],
+          [-55.054316400333846, -29.54316711975633],
+          [-54.971431829700066, -29.560110616981305],
+          [-54.8246791955296, -29.481057814453678],
+          [-54.772348103860324, -29.547101213390164],
+          [-54.65399970066687, -29.59875323709413],
+          [-54.529287966222284, -29.596952601022753],
+          [-54.42106275663161, -29.592662068126202],
+          [-54.25211822648299, -29.557985162004776],
+          [-54.23838114877856, -29.6057018525106],
+          [-54.143545282885725, -29.65695554739698],
+          [-53.98760428093533, -29.63544046885246],
+          [-53.89482321115236, -29.64842475879738],
+          [-53.91323116566139, -29.695990247187094],
+          [-53.82999936609964, -29.766196563619406],
+          [-53.732642004168156, -29.70057719271144],
+          [-53.5803125276326, -29.792259794207105],
+          [-53.41292085991745, -29.808497111211725],
+          [-53.20404052734375, -29.93589521337243],
+          [-52.404220884110465, -30.002515899452863],
+          [-51.33087158203125, -29.900186637177384],
+          [-50.09765625, -30.002516938570686]]]),
+    MG = 
+    /* color: #d63000 */
+    /* shown: false */
+    ee.Geometry.Polygon(
+        [[[-47.185577305332025, -20.270732190999375],
+          [-47.438262852207025, -21.082738472428037],
+          [-56.15907740579697, -21.60631118228584],
+          [-55.513214024082025, -29.867591628729127],
+          [-49.894219045027604, -30.236530977947154],
+          [-39.725860508457025, -21.43085941239641],
+          [-38.803008945957025, -17.4641517260036],
+          [-38.57200508372905, -15.526252118656663],
+          [-34.251219962707495, -8.242554990671914],
+          [-35.06078264772757, -4.895393108895134],
+          [-35.702407342797706, -4.75415152648355],
+          [-42.36228828685405, -14.762714873929818],
+          [-42.60675199379949, -16.28405420883982],
+          [-42.66990547435405, -17.128765556579875],
+          [-44.31785469310405, -18.977515735585147],
+          [-45.079993251260795, -19.26962521606166],
+          [-46.29539375560405, -20.11634003349908]]]),
+    convert12para29 = 
+    /* color: #d63000 */
+    /* shown: false */
+    ee.FeatureCollection(
+        [ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-44.591702208363536, -17.481657124397987],
+                  [-44.547756895863536, -18.35972462868146],
+                  [-43.646877989613536, -19.704643168656848],
+                  [-43.185452208363536, -19.414778001468093],
+                  [-43.168972716176036, -18.375364567476236],
+                  [-42.465847716176036, -17.874188871449558],
+                  [-42.40188716965216, -15.916023192527998],
+                  [-42.35244869308966, -14.907530822235449],
+                  [-43.05008052902716, -14.859751035016531],
+                  [-43.94546627121466, -16.835991577258294]]]),
+            {
+              "reference": 29,
+              "system:index": "0"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-44.239628752032665, -19.911464799000125],
+                  [-44.058354337970165, -20.61744191929498],
+                  [-43.176701505938915, -20.6945424727668],
+                  [-43.108036955157665, -20.200427141813783],
+                  [-43.341496427813915, -19.75386066131317],
+                  [-43.811161955157665, -19.712496030299903]]]),
+            {
+              "reference": 29,
+              "system:index": "1"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-44.46659494319798, -22.749853384633678],
+                  [-44.24686838069798, -22.107537188635217],
+                  [-44.66434884944798, -21.982794262967435],
+                  [-45.68058420101048, -22.73972139570178],
+                  [-44.88132882991673, -22.932100466817158]]]),
+            {
+              "reference": 29,
+              "system:index": "2"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-39.666045645096126, -19.5852320257441],
+                  [-39.594634512283626, -18.21325774626033],
+                  [-40.729063173568235, -17.54841241673829],
+                  [-41.336057802474485, -17.613869651795603],
+                  [-41.599729677474485, -18.40790794510813],
+                  [-41.726072450911985, -19.483314397238136],
+                  [-41.96369157187298, -20.063082787921278],
+                  [-41.99667700500412, -20.477798635184016],
+                  [-41.80318076211845, -21.2303490120238],
+                  [-40.93132260353641, -21.369637212364346],
+                  [-40.36930070273235, -20.768369267202413]]]),
+            {
+              "reference": 29,
+              "system:index": "3"
+            })]);
+
+// Define the Atlantic Forest boundary
+var limite_MA = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-48.593359954293625, -30.678347823900353],
+          [-47.275000579293625, -25.525376684152373],
+          [-40.595313079293625, -23.284530667538736],
+          [-33.915625579293625, -6.580343714417967],
+          [-35.453711516793625, -4.217995607905081],
+          [-44.198828704293625, -17.856203449528717],
+          [-50.483008391793625, -17.52126295946964],
+          [-55.712500579293625, -21.74193426005608],
+          [-55.492774016793625, -29.72888025446976]]]);
+
+// Define the output directory
+var dirout = 'projects/mapbiomas-workspace/AMOSTRAS/S2_2024/MATA_ATLANTICA/'
+
+// Define the input stable version
+var v_estavel_in = '1';
+
+// Define the output version
+var version_out = '2';
+
+// Define the year
+var year = 2020;
+
+// Import the palettes module
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+// Define the visualization parameters
+var vis = {'min': 0,'max': 62,'palette': palettes.get('classification8')};
+
+// Load the collection 9 image
+var colecao9 = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection9/mapbiomas_collection90_integration_v1')
+
+// Add the collection 9 image to the map
+Map.addLayer(colecao9.select('classification_2023'), vis, 'Classes LANDSAT 23', false);
+
+// Load the stable version 1 image
+var estaveis_v1 = ee.Image(dirout+'MA_amostras_estaveis16a22_colS2_v'+v_estavel_in)
+
+// Add the stable version 1 image to the map
+Map.addLayer(estaveis_v1, vis, 'estaveis_v1 S2', false);
+
+// Load and remap the SEMA MG image
+var SEMA_MG = ee.ImageCollection('projects/mapbiomas-workspace/VALIDACAO/MATA_ATLANTICA/MG_IEF').mosaic()
+SEMA_MG = SEMA_MG.remap(
+                  [3, 4, 5, 9,11,12,13,15,18,19,20,36,39,41,21,22,23,24,25,26,29,30,31,32,33],
+                  [3, 4, 3, 9,11,12,13,21,21,21,21,21,21,21,21,22,22,22,22,33,29,22,33,13,33])
+                  .clip(MG)
+
+// Add the SEMA MG image to the map
+Map.addLayer(SEMA_MG, vis, 'SEMA_MG', false);
+
+// Load and remap the SEMA ES image
+var SEMA_ES = ee.Image('projects/mapbiomas-workspace/MAPA_REFERENCIA/MATA_ATLANTICA/ES_SEMA_IDMapBiomas_15m')
+SEMA_ES = SEMA_ES.remap(
+                  [3, 4, 5, 9,11,12,13,15,18,19,20,36,39,41,21,22,23,24,25,26,29,30,31,32,33],
+                  [3, 4, 3, 9,11,12,13,21,21,21,21,21,21,21,21,22,22,22,22,33,29,22,33,13,33])
+
+// Add the SEMA ES image to the map
+Map.addLayer(SEMA_ES, vis, 'SEMA_ES', false);
+
+// Load and remap the SEMA PR image
+var SEMA_PR = ee.Image('projects/mapbiomas-workspace/MAPA_REFERENCIA/MATA_ATLANTICA/PR_Sema_LULC_10m_ids_MapBiomas3')
+SEMA_PR = SEMA_PR.remap(
+                  [3, 4, 5, 9,11,12,13,15,18,19,20,36,39,41,21,22,23,24,25,26,29,30,31,32,33],
+                  [3, 4, 3, 9,11,12,13,21,21,21,21,21,21,21,21,22,22,22,22,33,29,22,33,13,33])
+
+// Add the SEMA PR image to the map
+Map.addLayer(SEMA_PR, vis, 'SEMA_PR', false);
+
+// Load and remap the SEMA SP image
+var SEMA_SP = ee.Image('projects/mapbiomas-workspace/MAPA_REFERENCIA/MATA_ATLANTICA/SP_IF_2020_2')
+SEMA_SP = SEMA_SP.remap(
+                  [3, 4, 5, 9,11,12,13,15,18,19,20,36,39,41,21,22,23,24,25,26,29,30,31,32,33],
+                  [3, 4, 3, 9,11,12,13,21,21,21,21,21,21,21,21,22,22,22,22,33,29,22,33,13,33])
+
+// Add the SEMA SP image to the map
+Map.addLayer(SEMA_SP, vis, 'SEMA_SP', false);
+
+//Corrige MG
+//var savanaMG = SEMA_MG.remap([4],[100])
+//savanaMG = savanaMG.add(estaveis_v1).remap([103],[4])
+//Map.addLayer(savanaMG, [], 'savanaMG', false);
+
+// Create a mask to remove class 21 from the SEMA MG image
+var apaga21MG = SEMA_MG.remap([3,4,9,12,13,29],[100,100,100,100,100,100])
+// Blend the masked SEMA MG image with the stable version 1 image and remap class 121 to 27
+apaga21MG = apaga21MG.add(estaveis_v1).remap([121],[27])
+
+// Add the masked SEMA MG image to the map
+Map.addLayer(apaga21MG, [], 'apaga21MG', false);
+
+// Create a mask to remove classes 4, 9, 11, 12, 13, 29, 21, and 22 from the SEMA MG image
+var apaga3MG = SEMA_MG.remap([4,9,11,12,13,29,21,22],[100,100,100,100,100,100,100,100])
+// Blend the masked SEMA MG image with the stable version 1 image and remap class 103 to 27
+apaga3MG = apaga3MG.add(estaveis_v1).remap([103],[27])
+
+// Add the masked SEMA MG image to the map
+Map.addLayer(apaga21MG, [], 'apaga21MG', false);
+
+// Create a mask to keep classes 12 and 29 from the SEMA MG image
+var complementoMG = SEMA_MG.remap([12,29],[12,29])
+
+//Corrige ES
+// Create a mask to remove classes 3, 4, 9, 12, 13, 29, and 22 from the SEMA ES image
+var apaga21ES = SEMA_ES.remap([3,4,9,12,13,29,22],[100,100,100,100,100,100,100])
+// Blend the masked SEMA ES image with the stable version 1 image and remap class 121 to 27
+apaga21ES = apaga21ES.add(estaveis_v1).remap([121],[27])
+
+// Add the masked SEMA ES image to the map
+Map.addLayer(apaga21ES, [], 'apaga21ES', false);
+
+// Create a mask to remove classes 4, 9, 11, 12, 13, 29, 21, and 22 from the SEMA ES image
+var apaga3ES = SEMA_ES.remap([4,9,11,12,13,29,21,22],[100,100,100,100,100,100,100,100])
+// Blend the masked SEMA ES image with the stable version 1 image and remap class 103 to 27
+apaga3ES = apaga3ES.add(estaveis_v1).remap([103],[27])
+
+// Add the masked SEMA ES image to the map
+Map.addLayer(apaga3ES, [], 'apaga3ES', false);
+
+// Create a mask to keep classes 12 and 29 from the SEMA ES image
+var complementoES = SEMA_ES.remap([12,29],[29,29])
+
+//Corrige PR
+// Create a mask to remove classes 3, 4, 9, 12, 13, 29, and 22 from the SEMA PR image
+var apaga21PR = SEMA_PR.remap([3,4,9,12,13,29,22],[100,100,100,100,100,100,100])
+// Blend the masked SEMA PR image with the stable version 1 image and remap class 121 to 27
+apaga21PR = apaga21PR.add(estaveis_v1).remap([121],[27])
+
+// Add the masked SEMA PR image to the map
+Map.addLayer(apaga21PR, [], 'apaga21PR', false);
+
+// Create a mask to remove classes 4, 9, 11, 12, 13, 29, 21, and 22 from the SEMA PR image
+var apaga3PR = SEMA_PR.remap([4,9,11,12,13,29,21,22],[100,100,100,100,100,100,100,100])
+// Blend the masked SEMA PR image with the stable version 1 image and remap class 103 to 27
+apaga3PR = apaga3PR.add(estaveis_v1).remap([103],[27])
+
+// Add the masked SEMA PR image to the map
+Map.addLayer(apaga3PR, [], 'apaga3PR', false);
+
+// Create a mask to keep classes 12 and 29 from the SEMA PR image
+var complementoPR = SEMA_PR.remap([12,29],[12,29])
+
+//Corrige SP
+// Create a mask to remove classes 3, 4, 5, 12, and 29 from the SEMA SP image
+var apaga21SP = SEMA_SP.remap([3,4,5,12,29],[100,100,100,100,100])
+// Blend the masked SEMA SP image with the stable version 1 image and remap class 121 to 27
+apaga21SP = apaga21SP.add(estaveis_v1).remap([121],[27])
+
+// Add the masked SEMA SP image to the map
+Map.addLayer(apaga21SP, [], 'apaga21SP', false);
+
+// Create a mask to remove classes 4, 9, 11, 12, and 29 from the SEMA SP image
+var apaga3SP = SEMA_SP.remap([4,9,11,12,29],[100,100,100,100,100])
+// Blend the masked SEMA SP image with the stable version 1 image and remap class 103 to 27
+apaga3SP = apaga3SP.add(estaveis_v1).remap([103],[27])
+
+// Add the masked SEMA SP image to the map
+Map.addLayer(apaga3SP, [], 'apaga3SP', false);
+
+// Create a mask to keep classes 12 and 29 from the SEMA SP image
+var complementoSP = SEMA_SP.remap([12,29],[12,29])
+
+// Blend the stable version 1 image with the corrected SEMA images
+var estaveis_v2 = estaveis_v1
+    .blend(apaga21MG).blend(apaga3MG).blend(complementoMG)
+    .blend(apaga21ES).blend(apaga3ES).blend(complementoES)
+    .blend(apaga21PR).blend(apaga3PR).blend(complementoPR)
+    .blend(apaga21SP).blend(apaga3SP).blend(complementoSP)
+
+// Add the blended image to the map
+Map.addLayer(estaveis_v2, vis, 'estaveis_v2', false);
+
+// Load the GEDI image and clip it to the Atlantic Forest boundary
+var GEDI = ee.Image('users/potapovpeter/GEDI_V27/GEDI_SAM_v27').clip(limite_MA2).rename('GEDI');
+
+// Define the visualization parameters for the GEDI image
+var imageVisGEDI = {"min": 0,"max": 15,"palette":["c9f5f1","#ffbeee","#daffe0","#c0debf","08ff04","#037e07","0b240a"]};
+
+// Add the GEDI image to the map
+Map.addLayer(GEDI, imageVisGEDI,'GEDI', false);
+
+// Create a mask for forest areas based on GEDI data
+var am_flo_gedi = GEDI.gte(8).remap([1],[100],0)
+
+// Add the forest mask to the map
+Map.addLayer(am_flo_gedi.selfMask(), {"palette":["037e07"]},'GEDI_Floresta', false);
+  
+// Create a mask for non-forest areas based on GEDI data
+var am_cam_gedi = GEDI.lt(7).remap([1],[200],0)
+
+// Add the non-forest mask to the map
+Map.addLayer(am_cam_gedi.selfMask(), {"palette":["806316"]},'GEDI_Campo', false);
+ 
+// Blend the stable version 2 image with the GEDI masks
+var estavel_GEDI = estaveis_v2.add(am_flo_gedi).add(am_cam_gedi)
+//Map.addLayer(estavel_GEDI, vis, 'estavel_GEDI', false);
+
+// Remap the classes to the desired values
+estavel_GEDI = estavel_GEDI.remap(
+  [  3,  4,  9, 12, 50, 21, 22, 29, 33,
+   103,104,109,112,150,121,122,129,133,
+   203,204,209,212,250,221,222,229,233],
+  [  0,  4,  9,  0,  0, 21,  0,  0,  0,
+     3,  0,  9,  0,  0,  0,  0,  0,  0,
+     0,  4,  9, 12, 50, 21, 22, 29, 33],0 ).rename('reference')
+ 
+// Add the blended image to the map
+Map.addLayer(estavel_GEDI.selfMask(), vis, 'estavel_GEDI', false);
+
+// Create a mask for forest areas without a 10m buffer
+var flo_sem_buff10m = estavel_GEDI.eq(3).distance(ee.Kernel.euclidean(100, 'meters'))
+flo_sem_buff10m = flo_sem_buff10m.lte(10).selfMask()
+Map.addLayer(flo_sem_buff10m)
+
+// Export the blended image to an asset
+Export.image.toAsset({
+    "image": estavel_GEDI.selfMask().toInt8(),
+    "description": 'MA_amostras_estaveis16a22_colS2_v'+version_out,
+    "assetId": dirout + 'MA_amostras_estaveis16a22_colS2_v'+version_out,
+    "scale": 30,
+    "pyramidingPolicy": {
+        '.default': 'mode'
+    },
+    "maxPixels": 1e13,
+    "region": limite_MA2
+});
