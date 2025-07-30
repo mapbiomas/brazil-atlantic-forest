@@ -1,0 +1,238 @@
+/**
+ * This script corrects inconsistencies in deforestation and regeneration by analyzing temporal transitions.
+ * 
+ * It does this separately for the last three years and the first three years.
+ * It identifies small areas of apparent deforestation (transition from natural to anthropic)
+ * and regeneration (transition from anthropic to natural) using a connected component analysis (connectedPixelCount)
+ * to find small clusters of pixels. If these clusters are below a certain size threshold, they are masked out,
+ * smoothing the classification in the first three and last three years.
+ * 
+ * A similar correction is applied for wetland class (avoiding wetland loss) in the last three years.
+ * It corrects instances where wetland (class 11) is classified as mosaic of uses (class 21) in the last year of the time series,
+ * while maintaining wetland classification in the two preceding years.
+ * 
+ * It uses as input data output data from script 06-10.
+ * The output data from this script is used as an input in script XX-XX.
+ * 
+ */
+
+// Define the geometry for the Atlantic Forest region.
+var limite_MA = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-48.593359954293625, -30.678347823900353],
+          [-47.275000579293625, -25.525376684152373],
+          [-40.595313079293625, -23.284530667538736],
+          [-33.915625579293625, -6.580343714417967],
+          [-35.453711516793625, -4.217995607905081],
+          [-44.198828704293625, -17.856203449528717],
+          [-50.483008391793625, -17.52126295946964],
+          [-55.712500579293625, -21.74193426005608],
+          [-55.492774016793625, -29.72888025446976]]]);
+
+/**
+ * Legend for land cover classes:
+ * 3  = Forest Formation
+ * 4  = Savanna Formation
+ * 11 = Wetland
+ * 12 = Grassland
+ * 50 = Herbaceous Sandbank Vegetation
+ * 21 = Mosaic of Uses
+ * 22 = Non vegetated area
+ */ 
+
+// Define a description for the process.
+var descricao = 'Transição primeiro e ultimo ano';
+// Define input and output version numbers.
+var vesion_in = '5';
+var versao_out = '6'; 
+// Define the collection id.
+var col = 10.0;
+// Define input and output prefixes for asset naming.
+var prefixo_in  = 'MA_col'+col+'_p06a_v';
+var prefixo_out = 'MA_col'+col+'_p06b_v';
+// Define the output directory.
+var dirout = 'projects/mapbiomas-brazil/assets/LAND-COVER/COLLECTION-'+col+'/GENERAL/classification-mat-ft/';
+// Define the biome.
+var bioma = "MATAATLANTICA";
+
+// Load the input image (collection 10).
+var imgCol =  ee.Image(dirout+prefixo_in+vesion_in);
+//Map.addLayer(col7, {}, 'col7', false);
+
+// Import the palettes module.
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+// Define visualization parameters.
+var vis = {
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+var vis2 = {
+    'bands': 'classification_2024', // Just for year 2024.
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+
+// Create a list of years (update here and the rest of the code adjusts automatically).
+var anos = ee.List.sequence(1985, 2024)                 // Creates a list of years from A to B.
+                  .map(function(y){                                                     
+                        return ee.Number(y).int(); });  // Turns each value in the list into an integer number.
+var n      = anos.size();                               // List size.                                                    
+var ultimo = ee.Number(anos.get(n.subtract(1)));        // Gets the last value in the list.
+var penult = ee.Number(anos.get(n.subtract(2)));        // Gets the second-to-last value in the list.
+var antpen = ee.Number(anos.get(n.subtract(3)));        // Gets the third-to-last value in the list.
+
+// Create a level 0 collection of image classifications for all years.
+var nivel0 = ee.ImageCollection(anos
+               .map(function(ano){
+                     var anoStr = ee.Number(ano).format();                      // Converts the number to a string.
+                     var nomeBanda = ee.String('classification_').cat(anoStr);  // Creates the band names by concatenating the two strings.
+                     var class_ano = imgCol.select(nomeBanda);                  // Selects all bands.
+                     var nivel0_ano = class_ano.remap([3,4,11,12,50,21,22],     // Remaps classes to level 0 (natural and anthropic).
+                                                      [1,1, 1, 1, 1,10,10])
+                                               .rename(nomeBanda);              // Renames bands 'remapped'.
+                     return nivel0_ano;
+                                  })).toBands();                                // Converts the imageCollection to a multiband image.
+
+var corrIndx  = function (img){
+                  var indxNames = img.bandNames();                              // 'bandNames' creates an 'ee.List' from bands in an 'ee.Image'.
+                  var bandNames = indxNames.map(function(nome){                 // Removes the index created by '.toBands()'.
+                          return ee.String(nome).split('_').slice(1).join('_');
+                                      });
+                                      
+                    return img.select(indxNames,bandNames);                     // Replaces bands with 'XX_' created by '.toBands()' with clean names.
+                              };
+    nivel0 = corrIndx(nivel0);
+
+// LASTS YEARS CORRECTIONS //
+// Select the level 0 classifications for the lasts three years.
+var nivel0_ult = nivel0.select(ee.String('classification_').cat(ultimo));   // Selects the band of the last year of the image.
+var nivel0_pen = nivel0.select(ee.String('classification_').cat(penult));   // Selects the band of the penultimate year of the image.
+var nivel0_ant = nivel0.select(ee.String('classification_').cat(antpen));   // Selects the band of the antipenultimate year of the image.
+print(nivel0_ant);
+
+// Correct small DEFORESTATION areas.
+var desmat = nivel0_ult.eq(10)    // TRUE for anthropic class in the last year.
+        .and(nivel0_pen.eq(1))    // TRUE for natural class in the penultimate year.
+        .and(nivel0_ant.eq(1));   // TRUE for natural class in the penultimate year.
+        
+var conectedDesmat = desmat.selfMask()                         // Masks null values.
+                           .connectedPixelCount(20, true)
+                           .reproject('epsg:4326', null, 30);
+                            
+var desmat1ha = conectedDesmat.lte(11);                                         // 11 pixels = 11x30x30 = 11x900m2 = 9900m2 (approx. 1ha).
+var ruidoDesmat_pen = imgCol.select(ee.String('classification_').cat(penult))
+                            .updateMask(desmat1ha);                             // Applies the mask of small deforestations to the image in collection 10.
+
+// Correct small REGENERATION areas.
+var regen = nivel0_ult.eq(1)    // TRUE for natural class in the last year.
+     .and(nivel0_pen.eq(10))    // TRUE for anthropic class in the penultimate year.
+     .and(nivel0_ant.eq(10));   // TRUE for anthropic class in the penultimate year.
+       
+var conectedRegen = regen.selfMask()                         // Masks null values.
+                         .connectedPixelCount(25,true)
+                         .reproject('epsg:4326', null, 30);
+                         
+var regen2ha = conectedRegen.lte(22);                                         // 22 pixels = 22x30x30 = 22x900m2 = 19800m2 (approx. 2ha).
+var ruidoRegen_pen = imgCol.select(ee.String('classification_').cat(penult))
+                           .updateMask(regen2ha);                             // Applies the mask of small regenerations to the image in collection 10.
+
+// FIRSTS YEARS CORRECTIONS //
+// Select the level 0 classifications for the first three years.
+var nivel0_pri = nivel0.select('classification_1985');
+var nivel0_seg = nivel0.select('classification_1986');
+var nivel0_ter = nivel0.select('classification_1987');
+
+// Correct small DEFORESTATION areas in the first years.
+var desmat = nivel0_pri.eq(1)
+        .and(nivel0_seg.eq(10))
+        .and(nivel0_ter.eq(10));
+         
+var conectedDesmat = desmat.selfMask()
+                           .connectedPixelCount(30,true)
+                           .reproject('epsg:4326', null, 30);
+                           
+var desmat2ha = conectedDesmat.lte(22);
+var ruidoDesmat_pri = imgCol.select('classification_1986').updateMask(desmat2ha);
+
+// Correct small REGENERATION areas in the first years.
+var regen = nivel0_pri.eq(10)
+       .and(nivel0_seg.eq(1))
+       .and(nivel0_ter.eq(1));
+       
+var conectedregen = regen.selfMask()
+                         // Count connected pixels within a 30-pixel radius. `true` ensures 8-connectivity.
+                         .connectedPixelCount(30,true)
+                         .reproject('epsg:4326', null, 30);
+                         
+// Create a mask to identify small regeneration areas (<= 1 hectare).
+// 11 pixels at 30m resolution is approximately 1 hectare.
+var regen1ha = conectedregen.lte(11);
+// Apply the mask to the 1986 classification image.
+// This will mask out small regeneration areas, leaving only larger ones.
+var ruidoRegen_pri = imgCol.select('classification_1986').updateMask(regen1ha);
+
+// Correct loss of WETLAND (11) in the last year.
+var corrigeVar_ult = imgCol.select(ee.String('classification_').cat(antpen)).eq(11)
+                .and(imgCol.select(ee.String('classification_').cat(penult)).eq(11))
+                .and(imgCol.select(ee.String('classification_').cat(ultimo)).eq(21));
+    corrigeVar_ult = corrigeVar_ult.remap([1],[11]);
+    
+Map.addLayer(corrigeVar_ult, vis, 'corrigeVar_ult', true);
+
+// Create a corrected image collection.
+var class_final = ee.ImageCollection((anos)
+                    .map(function(ano){
+                          ano = ee.Number(ano);
+                          var anoStr = ano.format();
+                          var class_ano = imgCol.select(ee.String('classification_').cat(anoStr));
+
+                          // Apply corrections based on the year.
+                          var class_corr = ee.Image(
+                            ee.Algorithms.If(ano.eq(1985),
+                              class_ano.blend(ruidoDesmat_pri)
+                                       .blend(ruidoRegen_pri),
+                                       
+                            ee.Algorithms.If(ano.eq(ultimo),
+                              class_ano.blend(ruidoDesmat_pen)
+                                       .blend(ruidoRegen_pen)
+                                       .blend(corrigeVar_ult),
+                            class_ano
+                            ))
+                          );
+
+                          return class_corr.rename(ee.String('classification_').cat(anoStr));
+})).toBands();
+
+// Correct the band names.
+class_final = corrIndx(class_final);
+print(class_final);
+
+// Add the original and corrected classifications to the map
+Map.addLayer(imgCol, vis2, 'imgCol', true);
+Map.addLayer(class_final, vis2, 'class_final', true);
+//Map.setCenter(-49.38849, -25.39505,14);
+
+// Set the metadata for the final classification image.
+class_final = class_final
+.set('territory', 'MATAATLANTICA')
+.set('biome', 'MATAATLANTICA')
+.set('source', 'arcplan')
+.set('version', versao_out)
+.set('year', versao_out)
+.set('collection_id', col)
+.set('description', descricao);
+
+// Export the final classification image to an asset.
+Export.image.toAsset({
+    "image": class_final.toInt8(),
+    'description': prefixo_out+versao_out,
+    'assetId': dirout+prefixo_out+versao_out,
+    "scale": 30,
+    "pyramidingPolicy": {
+        '.default': 'mode'
+    },
+    "maxPixels": 1e13,
+    "region": limite_MA
+});

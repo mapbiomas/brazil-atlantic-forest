@@ -1,0 +1,122 @@
+/**
+ * This script shows the results of feature importance from the Random Forest classifier for each region, in the console.
+ * It's possible to order this data for each region, in a spreadsheet.
+ * 
+ * The output data (in the console) from this script is used on scripts 04-XX as an input,
+ * as a list of the most important bands, for each region.
+ * Each region will use the 60 most important ones (plus slope, lat and long, if they are not on the list).
+ * 
+ */
+
+// Define a geometry for the Atlantic Forest region.
+var limite_MA = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-48.593359954293625, -30.678347823900353],
+          [-47.275000579293625, -25.525376684152373],
+          [-40.595313079293625, -23.284530667538736],
+          [-33.915625579293625, -6.580343714417967],
+          [-35.453711516793625, -4.217995607905081],
+          [-44.198828704293625, -17.856203449528717],
+          [-50.483008391793625, -17.52126295946964],
+          [-55.712500579293625, -21.74193426005608],
+          [-55.492774016793625, -29.72888025446976]]]);
+
+//var regiaoID = 'reg_01';
+
+// Import a module containing monthly Landsat mosaics.
+var mos = require('users/marcosrosaUSP/MapBiomas_col10_MA:Mata_Atlantica_LANDSAT/passo01/old_mosaicos_mensais_do_Google_v3');
+
+// Load `the cluster data for the Atlantic Forest. From script 02-10.
+var mosaicos_MA_clusters = ee.Image('projects/mapbiomas-workspace/COLECAO_10/MA_clusters_1985_2024_asset_salvo');
+print(mosaicos_MA_clusters);
+
+// Set the number of trees for the Random Forest classifier.
+var RFtrees = 500;
+
+// Load a feature collection with regions of the Atlantic Forest.
+var regioesCollection = ee.FeatureCollection('projects/mapbiomas-workspace/AUXILIAR/Mata_Atlantica_Regioes2025');
+Map.addLayer(regioesCollection, {}, 'regioesCollection', false);
+
+// Define the path to training data.
+var dirsamples = 'projects/mapbiomas-workspace/AMOSTRAS/col10/MATA_ATLANTICA/';
+// The number of the seed.
+var seed = '1';
+// Get the year of analisys.
+var ano = 2024;
+// The training data version from script 03-10.
+var versao_pt = '3';
+
+// Define the list of years in the analisys.
+var anos = [
+            1985,1986,1987,1988,1989,1990,1991,1992,1993,1994,
+            1995,1996,1997,1998,1999,2000,2001,2002,2003,2004,
+            2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,
+            2015,2016,2017,2018,2019,2020,2021,2022,2023,2024
+            ];
+
+// Loop through each year.
+for (var i_ano=0;i_ano<anos.length; i_ano++){
+    // Get the current year.
+    //var ano = anos[i_ano];
+
+    // Get the mosaic for the current year and region.
+    var mosaicoTotal = mos.getMosaic(ano,limite_MA);
+    // Add a band representing the year.
+    var img_ano = ee.Image(ano);
+    mosaicoTotal = mosaicoTotal.addBands(img_ano.rename('ano'));
+
+    // Add bands from the cluster data image.
+    var img_ano = ee.Image(ano);
+    mosaicoTotal = mosaicoTotal
+        .addBands(mosaicos_MA_clusters.select(
+          ['clusters_'+ano, 'clusters_green_text_'+ano, 'amp_ndfi_3anos_'+ano, 
+          'clusters_ndfi_median_'+ano, 'longitude','latitude'],
+          ['clusters', 'clusters_green_text', 'amp_ndfi_3anos', 
+          'clusters_ndfi_median', 'longitude','latitude']));
+    //print(mosaicoTotal)
+}
+
+// Band names list used in the analisys.
+var bandNames = ee.List([
+'amp_ndfi_3anos','ano','blue_amp','blue_median','blue_median_dry','blue_median_wet','blue_stdDev','cai_amp','cai_median','cai_median_dry','cai_median_wet',
+'cai_stdDev','cloud_amp','cloud_median','cloud_median_dry','cloud_median_wet','cloud_stdDev','clusters','clusters_green_text','clusters_ndfi_median','evi2_amp',
+'evi2_median','evi2_median_dry','evi2_median_wet','evi2_stdDev','fns_amp','fns_median','fns_median_dry','fns_median_wet','fns_stdDev','gcvi_amp','gcvi_median',
+'gcvi_median_dry','gcvi_median_wet','gcvi_stdDev','green_amp','green_median','green_median_dry','green_median_texture','green_median_wet','green_stdDev','gv_amp',
+'gv_median','gv_median_dry','gv_median_wet','gv_stdDev','gvs_amp','gvs_median','gvs_median_dry','gvs_median_wet','gvs_stdDev','hallcover_amp','hallcover_median',
+'hallcover_median_dry','hallcover_median_wet','hallcover_stdDev','hallheigth_amp','hallheigth_median','hallheigth_median_dry','hallheigth_median_wet',
+'hallheigth_stdDev','latitude','longitude','ndfi_amp','ndfi_median','ndfi_median_dry','ndfi_median_wet','ndfi_stdDev','ndvi_amp','ndvi_median','ndvi_median_dry',
+'ndvi_median_wet','ndvi_stdDev','ndwi_amp','ndwi_median','ndwi_median_dry','ndwi_median_wet','ndwi_stdDev','nir_amp','nir_median','nir_median_dry','nir_median_wet',
+'nir_stdDev','npv_amp','npv_median','npv_median_dry','npv_median_wet','npv_stdDev','pri_amp','pri_median','pri_median_dry','pri_median_wet','pri_stdDev','red_amp',
+'red_median','red_median_dry','red_median_wet','red_stdDev','savi_amp','savi_median','savi_median_dry','savi_median_wet','savi_stdDev','sefi_amp','sefi_median',
+'sefi_median_dry','sefi_median_wet','sefi_stdDev','shade_amp','shade_median','shade_median_dry','shade_median_wet','shade_stdDev','slope','soil_amp','soil_median',
+'soil_median_dry','soil_median_wet','soil_stdDev','swir1_amp','swir1_median','swir1_median_dry','swir1_median_wet','swir1_stdDev','swir2_amp','swir2_median',
+'swir2_median_dry','swir2_median_wet','swir2_stdDev','wefi_amp','wefi_median','wefi_median_dry','wefi_median_wet','wefi_stdDev'
+]);
+
+// The list of regions.
+var regioes_lista = [
+    ['reg_01'],['reg_02'],['reg_03'],['reg_04'],['reg_05'],['reg_06'],['reg_07'],['reg_08'],['reg_09'],['reg_10'],
+    ['reg_11'],['reg_12'],['reg_13'],['reg_14'],['reg_15'],['reg_16'],['reg_17'],['reg_18'],['reg_19'],['reg_20'],
+    ['reg_21'],['reg_22'],['reg_23'],['reg_24'],['reg_25'],['reg_26'],['reg_27'],['reg_28'],['reg_29'],['reg_30']
+    ];
+
+// Loop through each region.
+for (var i_regiao=0;i_regiao<regioes_lista.length; i_regiao++){
+  // Get the current region ID.
+  var lista = regioes_lista[i_regiao];
+  var regiao = lista[0];
+  // Filter the regions feature collection to get the geometry for the current region.
+  var limite = regioesCollection.filter(ee.Filter.eq('reg_id',regiao));
+
+  // Load the training data for the current region.
+  var BDamostras = ee.FeatureCollection(dirsamples + 'pontos_train_v'+versao_pt+'_'+ano+'_seed_'+seed)
+                     .filter(ee.Filter.eq('reg_id',regiao));
+
+  // Train a Random Forest classifier.
+  var classifier = ee.Classifier.smileRandomForest({numberOfTrees: RFtrees, variablesPerSplit:1}).train(BDamostras, 'reference', bandNames);
+  
+  // This print shows the results of feature importance from this Random Forest classifier in the console.
+  // To use this information in the next scripts we copy and paste it on a spreadsheet.
+  // In the spreadsheet is possible to order by importance for each region.
+  print(regiao,classifier.explain());
+
+}

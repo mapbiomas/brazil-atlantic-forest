@@ -1,0 +1,195 @@
+/**
+ * This script identifies and corrects pixels that are classified as Forest (3) or Savanna (4).
+ * A pixel is corrected if it meets a strict set of four simultaneous conditions:
+ * (a) it is currently classified as natural forest,
+ * (b) it was an anthropic area in the previous year,
+ * (c) it is on higher/steeper terrain (HAND),
+ * AND (d) it is identified as a forest plantation in Sentinel-2 LULC Collection 2 (10m).
+ * The goal is to distinguish between natural forest regrowth and commercial forestry (forest plantation).
+ * 
+ * It creates a set of masks to identify pixels to correct.
+ * The first mask uses HAND, for pixels that are 5 meters or higher above the nearest drainage line,
+ * identifying higher and steeper terrain, the value is set to 1.
+ * The second mask uses Sentinel-2 LULC Collection 2 (10m),
+ * for pixels classified as Forest Plantation (9) for the year 2021, the value is set to 1.
+ * Then combines both masks where 
+ * 0 = pixel is NOT a known S2 Plantation AND is in a low-lying area,
+ * 1 = pixel is a known S2 Plantation OR it is on higher ground
+ * and 2 = pixel is a known S2 Plantation AND it is on higher ground.
+ * 
+ * The script iterates through the time series from 1985 to 2024.
+ * A pixel's classification is changed to Mosaic of Uses (21) only if the sum of all masks equals exactly 4.
+ * For the current year classification, Forest (3) and Savanna (4) are remapped to 1 (this contributes +1 to the sum).
+ * For the previous, already-correct year, Mosaic of Uses (21) is remapped to 1 (this contributes +1 to the sum).
+ * And for the combined mask of HAND and Sentinel-2, it uses value = 2 (this contributes +2 to the sum).
+ * A correction is made if 1 (Current) + 1 (Past) + 2 (HAND and S2) = 4.
+ * If any of these conditions are not met, the sum will not be 4, and no correction is made.
+ * 
+ * It uses as input data output data from script 09-60.
+ * The output data from this script is used as an input in script 10-20.
+ * 
+ */
+
+// Define the geometry for the Atlantic Forest region.
+var limite_MA = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-48.593359954293625, -30.678347823900353],
+          [-47.275000579293625, -25.525376684152373],
+          [-40.595313079293625, -23.284530667538736],
+          [-33.915625579293625, -6.580343714417967],
+          [-35.453711516793625, -4.217995607905081],
+          [-44.198828704293625, -17.856203449528717],
+          [-50.483008391793625, -17.52126295946964],
+          [-55.712500579293625, -21.74193426005608],
+          [-55.492774016793625, -29.72888025446976]]]);
+
+//Map.setCenter(-48.41649, -24.23158,13);
+
+// Define the input and output version numbers.
+var vesion_in = '73_Sf';
+var versao_out = '74_Sf';
+// Define the description of the process.
+var descricao = 'Remove floresta ultimos anos';
+// Define the collection id.
+var col = 10.0;
+// Define input and output prefixes for asset naming.
+var prefixo_in  = 'MA_col'+col+'_p09f_v';
+var prefixo_out = 'MA_col'+col+'_p10a_v';
+// Define output directory for assets.
+var dirout = 'projects/mapbiomas-brazil/assets/LAND-COVER/COLLECTION-'+col+'/GENERAL/classification-mat-ft/';
+
+// Load the collection 10 image.
+var imgCol =  ee.Image(dirout+prefixo_in+vesion_in);
+
+// Import the palettes module.
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+// Define visualization parameters.
+var vis = {
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+var vis2 = {
+    'bands': 'classification_2020',
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+// Define the visualization parameters for HAND.
+var vis_hand = {
+    'min': 0,
+    'max': 60,
+    'palette': 'blue,white,green,orange,red,brown'
+};
+
+// Load the HAND image.
+var hand30_100 = ee.ImageCollection('users/gena/global-hand/hand-100').mosaic();
+// Add the HAND image to the map
+Map.addLayer(hand30_100,vis_hand,'hand_1000',false);
+
+// Create a mask for HAND values greater than or equal to 5.
+var hand30_100_7 =  hand30_100.gte(5);//.selfMask();
+// Add the mask to the map.
+//Map.addLayer(hand30_100,vis_hand,'hand_1000',false);
+Map.addLayer(hand30_100_7,{    'min': 0,    'max': 1,'palette': 'white, blue'} ,'hand_100- 7',false);
+
+// Load the MapBiomas Sentinel-2 (10m) Collection 2 integrated asset.
+var colS2 = ee.Image('projects/mapbiomas-public/assets/brazil/lulc_10m/collection2/mapbiomas_10m_collection2_integration_v1');
+print(colS2);
+
+// Create a binary mask indicating where the classification in the Sentinel-2 collection for the year 2021 is class 9 (Planted Forest).
+// Pixels classified as 9 get a value of 1, others 0.
+var maskS2_9 = colS2.select('classification_2021').remap([9],[1]);
+Map.addLayer(maskS2_9, {}, 'maskS2_9', false);
+
+// Combine the Sentinel-2 planted forest mask and the HAND >= 5 mask by adding them.
+// 0 (not S2_9 and HAND<5), 1 (either S2_9 OR HAND>=5), 2 (both S2_9 AND HAND>=5).
+var mask_S2_9 = maskS2_9.add(hand30_100_7);
+Map.addLayer(mask_S2_9, {}, 'mask_S2_9', false);
+
+// Add the collection Sentinel classification to the map.
+Map.addLayer(colS2.select('classification_2021'), vis, 'class S2 2021', false);
+
+// Load the biomes image.
+var biomes = ee.Image('projects/mapbiomas-workspace/AUXILIAR/biomas-raster-41');
+var bioma250mil_MA = biomes.mask(biomes.eq(2));
+Map.addLayer(bioma250mil_MA,{'palette': 'ccffcc'}, 'bioma250mil_MA', false);
+
+// Define the years to process.
+var anos = [1985,1986,1987,1988,1989,1990,1991,1992,1993,1994,
+            1995,1996,1997,1998,1999,2000,2001,2002,2003,2004,
+            2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,
+            2015,2016,2017,2018,2019,2020,2021,2022,2023,2024];
+
+//var anos = [1985];
+
+// Loop through the years and apply corrections.
+for (var i_ano=0;i_ano<anos.length; i_ano++){
+  var ano = anos[i_ano]; // Get the current year.
+  
+  // Select the classification for the current year.
+  var class_ano = imgCol.select('classification_'+ano);
+
+  // Apply corrections based on the year
+  if (ano == 1985) {var class_corr = class_ano;} // First year (1985): no correction using the previous year's data.
+  else { // For years after 1985, apply corrections based on the *previous* year's classification.
+    // Create a mask for class 21 in the previous year's classification.
+    var class_ante = class_corr.remap([21],[1]);
+
+    // Apply the main correction logic for the current year:
+    // 1. Select the *original* classification for the current year (`class_ano`).
+    // 2. Remap original Forest Formation (3) and Savanna Formation (4) to 1. All other classes remain unchanged.
+    // 3. Add the mask of 'Mosaic of Uses' from the previous year's classification (`class_ante`).
+    // 4. Add the combined Sentinel-2 planted forest / HAND >= 5 mask (`mask_S2_9`).
+    // The sum will have values: 0, 1, 2, 3, 4.
+    // 5. Remap pixels where the sum is 4 to class 21 (Mosaic of Uses). A sum of 4 means:
+    //    (Original current year Forest (1) + Previous corrected Mosaic (1) + S2 Planted Forest/HAND (2)) == 4 or
+    //    (Original current year non-Forest + Previous corrected Mosaic (1) + S2 Planted Forest/HAND (3)).
+    var class_corr_s2 = class_ano.remap([3,4],[1,1]).add(class_ante).add(mask_S2_9).remap([4],[21]);
+
+    // Blend the original classification for the current year (`class_ano`)
+    // with the result of the S2/HAND/Previous Mosaic correction (`class_corr_s2`).
+    var class_corr = class_ano.blend(class_corr_s2).rename('classification_'+ano);
+  }
+
+  // Combine the corrected classification band for the current year (`class_corr`) with the accumulating corrected image (`image`).
+  if (i_ano == 0){ var image = class_corr;}  // For the first year.
+  else {image = image.addBands(class_corr);} // For subsequent years.
+
+} // End of the year loop.
+
+// Calculate the difference between the input classification for the last year processed (2024)
+// and the final corrected classification for the same last year.
+// This image (`efeito`) highlights pixels that changed during the correction process for the last year.
+var efeito = imgCol.select('classification_'+ano).eq(image.select('classification_'+ano));
+Map.addLayer(efeito);
+
+// Add the original and corrected classifications to the map.
+Map.addLayer(image, {}, 'class_final', false);
+Map.addLayer(imgCol, vis2, 'imgCol', true);
+Map.addLayer(image, vis2, 'class_final', true);
+
+print(image);
+
+// Set the metadata for the final classification image.
+image = image
+.set('territory', 'BRAZIL')
+.set('biome', 'MATAATLANTICA')
+.set('source', 'arcplan')
+.set('version', versao_out)
+.set('year', versao_out)
+.set('collection_id', col)
+.set('description', descricao);
+
+// Export the final classification image to an asset.
+Export.image.toAsset({
+    "image": image.toInt8(),
+    'description': prefixo_out+versao_out,
+    'assetId': dirout+prefixo_out+versao_out,
+    "scale": 30,
+    "pyramidingPolicy": {
+        '.default': 'mode'
+    },
+    "maxPixels": 1e13,
+    "region": limite_MA
+});

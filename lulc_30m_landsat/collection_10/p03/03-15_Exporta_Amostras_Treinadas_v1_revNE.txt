@@ -1,0 +1,186 @@
+/**
+ * This script trains the stable samples from collection 10 with a mosaic of 178 bands for regions 21 and 27.
+ * The output of the script merges both regions and generates an asset per year with all bands.
+ * This script corrects a lack of stable samples in years 2008 and 2009, in the Brazilian northeast (NE).
+ * This script complements data from script 03-10.
+ * 
+ * This script uses the segmentation data from the script 02-10 as an input.
+ * This script uses the stratified sample table from script 02-20 as an input.
+ * The output data from this script is used on scripts 04-XX as an input.
+ * 
+ */
+
+// Define variables for feature collections containing training data and regions.
+var regioesCollection = ee.FeatureCollection("projects/mapbiomas-workspace/AUXILIAR/Mata_Atlantica_Regioes2025"),
+    pts_2008 = ee.FeatureCollection("projects/mapbiomas-workspace/AMOSTRAS/col10/MATA_ATLANTICA/pontos_train_v3_2008_seed_1"),
+    table = ee.FeatureCollection("projects/mapbiomas-workspace/AMOSTRAS/col10/MATA_ATLANTICA/pontos_train_v4_2008_seed_1"),
+    table2 = ee.FeatureCollection("projects/mapbiomas-workspace/AMOSTRAS/col10/MATA_ATLANTICA/pontos_train_v4_2009_seed_1"),
+    table3 = ee.FeatureCollection("projects/mapbiomas-workspace/AMOSTRAS/col10/MATA_ATLANTICA/pontos_train_v3_2008_seed_1");
+
+// Add layers to the map to visualize training data points with 'reference' value equal to 3.
+Map.addLayer(table3.filter(ee.Filter.eq('reference',3)), {}, 'pts_2008_v3');
+Map.addLayer(table.filter(ee.Filter.eq('reference',3)), {}, 'pts_2008_v4');
+Map.addLayer(table2.filter(ee.Filter.eq('reference',3)), {}, 'pts_2009_v4');
+
+// Define the geometry of the Atlantic Forest region.
+var limite_MA = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-48.593359954293625, -30.678347823900353],
+          [-47.275000579293625, -25.525376684152373],
+          [-40.595313079293625, -23.284530667538736],
+          [-33.915625579293625, -6.580343714417967],
+          [-35.453711516793625, -4.217995607905081],
+          [-44.198828704293625, -17.856203449528717],
+          [-50.483008391793625, -17.52126295946964],
+          [-55.712500579293625, -21.74193426005608],
+          [-55.492774016793625, -29.72888025446976]]]);
+
+// Define the version of the input training points. From script 02-02.
+var versao_pt = '5';
+// Define the output version.
+var versao_out = '4';
+
+// Define the input and output directories.
+var dirin = 'projects/mapbiomas-workspace/AMOSTRAS/col10/MATA_ATLANTICA/';
+var dirout = 'projects/mapbiomas-workspace/AMOSTRAS/col10/MATA_ATLANTICA/';
+
+// Define the visualization parameters for the mosaics.
+var vis_mos = {
+    bands: ['swir1_median', 'nir_median', 'red_median'],
+    gain: [0.08, 0.06, 0.2],
+    gamma: 0.85
+};
+
+// Import the palettes module.
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+// Define the visualization parameters for the classification.
+var vis = {
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+
+// Load the regions collection.
+// Filter the regions collection to select specific regions (reg_27 and reg_21).
+var reg_27 = regioesCollection.filter(ee.Filter.eq('reg_id','reg_27'));
+Map.addLayer(reg_27, {palette: 'red'}, 'reg_27');
+
+var reg_21 = regioesCollection.filter(ee.Filter.eq('reg_id','reg_21'));
+Map.addLayer(reg_21, {palette: 'red'}, 'reg_21');
+
+// Add the regions collection to the map (visibility set to false).
+Map.addLayer(regioesCollection, {}, 'regioesCollection', false);
+
+//// Define the band names for the training data.
+//var bandNames = ['gcvi_median_dry','gcvi_median_wet','red_median_wet',
+//                 'swir1_median_dry','gcvi_median','ndvi_median_wet',
+//                 'red_median','cai_median','savi_median_wet','swir1_median',
+//                 'gcvi_stdDev','green_min','swir1_median_wet',
+//                 'savi_median_dry','nir_median','swir2_median_wet',
+//                 'red_min','savi_median','nir_median_wet','evi2_median',
+//                 'red_median_dry','evi2_median_wet','swir2_median_dry',
+//                 'swir2_median','ndvi_median_dry','green_median_wet',
+//                 'green_median','wefi_median_wet','evi2_median_dry',
+//                 'ndwi_median_wet','ndwi_stdDev','ndwi_median',
+//                 'slope']
+
+// Define the biome. Not in use.
+//var bioma = "MATAATLANTICA";
+
+// Define the color palette for the NDFI amplitude.
+var ndvi_color = '0f330f, 005000, 4B9300, 92df42, bff0bf, FFFFFF, eee4c7, ecb168, f90000';
+
+// Define the visualization parameters for the NDFI amplitude.
+var visParNDFI_amp = {'min':0, 'max':300, 'palette':ndvi_color};
+
+// Import Landsat mosaics.
+// Import a module containing functions to access monthly mosaics.
+var mos = require('users/marcosrosaUSP/MapBiomas_col10_MA:Mata_Atlantica_LANDSAT/passo01/old_mosaicos_mensais_do_Google_v3');
+
+// Load the mosaic of clusters. From script 02-10.
+var mosaicos_MA_clusters = ee.Image('projects/mapbiomas-workspace/COLECAO_10/MA_clusters_1985_2024_asset_salvo');
+//print(mosaicos_MA_clusters);
+//Map.addLayer(mosaicos_MA_clusters, {}, 'mosaicos_MA_clusters', false);
+
+// Define seed values (list or current).
+var lista_seeds = [1];
+var seed = 1;
+
+// Load the training points / stable samples.
+var pts = ee.FeatureCollection(dirin+'samples_stable_v'+versao_pt+'_reg');
+print(pts.limit(10));
+
+// Define years to process.
+// var anos = [
+//             1985,1986,1987,1988,1989,1990,1991,1992,1993,1994,
+//             1995,1996,1997,1998,1999,2000,2001,2002,2003,2004,
+//             2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,
+//             2015,2016,2017,2018,2019,2020,2021,2022,2023,2024
+//             ];
+var anos = [2008,2009];
+
+//Map.addLayer(mosaicoTotal, vis_mos, 'mosaico '+ ano, false);
+
+// Loop through each year.
+for (var i_ano=0;i_ano<anos.length; i_ano++){
+    // Get the current year.
+    var ano = anos[i_ano];
+    
+    var mosaicoTotal = mos.getMosaic(ano,limite_MA); // Get the mosaic for the current year.
+    var img_ano = ee.Image(ano); // Add year band.
+    mosaicoTotal = mosaicoTotal.addBands(img_ano.rename('ano'));
+
+    // Add the cluster, NDFI amplitude, green texture, NDFI median, longitude, latitude, and year bands to the mosaic.
+    mosaicoTotal = mosaicoTotal
+        .addBands(mosaicos_MA_clusters.select(['longitude','latitude']));
+          // (['clusters_'+ano, 'clusters_green_text_'+ano, 'amp_ndfi_3anos_'+ano, 
+          // 'clusters_ndfi_median_'+ano, 'longitude','latitude'],
+          // ['clusters', 'clusters_green_text', 'amp_ndfi_3anos', 
+          // 'clusters_ndfi_median', 'longitude','latitude']));
+    print(mosaicoTotal);
+
+    // Define Atlantic Forest regions list.
+    // var regioes_lista = [
+    //     ['reg_01'],['reg_02'],['reg_03'],['reg_04'],['reg_05'],['reg_06'],['reg_07'],['reg_08'],['reg_09'],['reg_10'],
+    //     ['reg_11'],['reg_12'],['reg_13'],['reg_14'],['reg_15'],['reg_16'],['reg_17'],['reg_18'],['reg_19'],['reg_20'],
+    //     ['reg_21'],['reg_22'],['reg_23'],['reg_24'],['reg_25'],['reg_26'],['reg_27'],['reg_28'],['reg_29'],['reg_30']
+    //     ];
+    var regioes_lista = [['reg_21'],['reg_27']];
+    
+    // Loop through each region.
+    for (var i_regiao=0;i_regiao<regioes_lista.length; i_regiao++){
+      var lista = regioes_lista[i_regiao]; // Get the current region.
+      var regiao = lista[0];
+      // Filter the regions collection to get the geometry for the current region.
+      var limite = regioesCollection.filter(ee.Filter.eq('reg_id',regiao));
+      
+      // Filter the training points within the current region.
+      var pts_reg = pts.filter(ee.Filter.eq('reg_id',regiao));
+  
+      // Sample the mosaic image using the points in the current region to create training data.
+      var training = mosaicoTotal.sampleRegions({
+          'collection': pts_reg,
+          'scale': 30, // Resolution of the sampling.
+          'tileScale': 4, // Improves performance for large regions.
+          'geometries': true // Include geometries in the output.
+      });
+      
+      // Map.addLayer(pts_reg, {}, 'ps_'+regiao)
+      // Map.addLayer(training, {}, 'training'+regiao)
+      // Map.addLayer(pts_2008.filterBounds(reg_21))  
+      
+      
+      // Merge the training data for all regions.
+      if (i_regiao == 0){ var training_reg = training }  
+      else {training_reg = training_reg.merge(training); }
+  
+    }    
+  
+//  print(training_reg.limit(1))
+  
+  // Export the training data to an asset.
+  Export.table.toAsset(training_reg,
+                       'pontos_train_v'+versao_out+'_'+ano+'_seed_'+seed,
+                       dirout + 'pontos_train_v'+versao_out+'_'+ano+'_seed_'+seed);  
+  
+}

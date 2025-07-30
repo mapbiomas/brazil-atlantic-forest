@@ -1,0 +1,188 @@
+/**
+ * Spatial Filter. The script applies spatial filtering and flood detection to refine the classification results.
+ * It performs a post-classification refinement process, by removing noise through spatial filtering
+ * and incorporates additional data (flood probability and HAND) to correct for potential misclassifications.
+ * 
+ * Spatial Filtering: A focal mode filter is applied to smooth the classification, aiming to remove small,
+ * isolated patches of classification. This is controlled by min_connect_pixel. 
+ * Only pixels with at least this many connected pixels of the same class are retained; others are masked out.
+ * 
+ * Flood Detection: The script incorporates flood detection using the classification itself; the probability image;
+ * and HAND (Height Above Nearest Drainage) data, which is used to identify low-lying areas prone to flooding.
+ * 
+ * These are combined to create a flood mask, which is then used to adjust the classification.
+ * Connected component analysis is used to ensure that only significant continuous flooded areas are considered.
+ * The spatially filtered classification and the flood-adjusted classification are blended
+ * to create a refined classification for the current year.
+ * 
+ * It loads two input key images: the original Landsat classification (classREMAP) from script 05-40
+ * and a probability image (classGAPprob) from script 05-20.
+ * The output data from this script is used as an input in script 06-20.
+ * 
+ */
+
+// Define the geometry for the Atlantic Forest region.
+var limite_MA = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-48.593359954293625, -30.678347823900353],
+          [-47.275000579293625, -25.525376684152373],
+          [-40.595313079293625, -23.284530667538736],
+          [-33.915625579293625, -6.580343714417967],
+          [-35.453711516793625, -4.217995607905081],
+          [-44.198828704293625, -17.856203449528717],
+          [-50.483008391793625, -17.52126295946964],
+          [-55.712500579293625, -21.74193426005608],
+          [-55.492774016793625, -29.72888025446976]]]);
+    
+// Define the biome.
+var bioma = "MATAATLANTICA";
+
+// Define the input and output version numbers.
+var vesion_in = '4';
+var versao_out = '5';
+
+// Define the description of the process.
+var descricao = 'Filtro Espacial';
+
+// Define the collection id.
+var col = 10.0;
+
+// Define input and output prefixes for asset naming.
+var prefixo_in  = 'MA_col'+col+'_p05c_v';
+var prefixo_out = 'MA_col'+col+'_p06a_v';
+
+// Define input and output directories for assets.
+var dirin  = 'projects/mapbiomas-workspace/COLECAO_'+col+'/pos_classificacao-ma/';
+var dirout = 'projects/mapbiomas-brazil/assets/LAND-COVER/COLLECTION-'+col+'/GENERAL/classification-mat-ft/';
+
+// Define minimum number of connected pixels for filtering.
+var min_connect_pixel = 6;
+var min_connect_pixel_agric = 6;
+
+// Define the image of agriculture.
+//var img_agric = ee.Image('projects/mapbiomas-workspace/COLECAO8/classificacao-ma/agric-RF85a22_v90');
+//print(img_agric);
+
+// Load the classification image and its probability image.
+var classREMAP = ee.Image(dirin+prefixo_in+vesion_in);//.mask(bioma250mil_MA)
+var classGAPprob = ee.Image(dirin+'MA_col'+col+'_p05a_v2_prob');//.mask(bioma250mil_MA)
+print(classREMAP);
+print(classGAPprob);
+
+// Import the palettes module.
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+// Define visualization parameters.
+var vis      = {bands: 'classification_2023','min': 0,'max': 69,'palette': palettes.get('classification9')};
+var vis2     = {'min': 0,'max': 69,'palette': palettes.get('classification9')};
+var vis_hand = {'min': 0,'max': 1,'palette': 'white,blue'}; // for HAND
+
+// Add the agriculture image to the map.
+//Map.addLayer(img_agric, vis, 'img_agric');
+
+// Add the classification image to the map.
+Map.addLayer(classREMAP, vis, 'classREMAP');
+//Map.addLayer(classGAPprob, {bands: 'prob_2023','min': 0,'max': 100,'palette': palettes.get('classification9')}, 'prob');
+
+// Create a list of years (update here and the rest of the code adjusts automatically).
+var anos = ee.List.sequence(1985, 2024)                                                           
+                  .map(function(y){                                                     
+                        return ee.Number(y).int(); });
+
+// Create an image collection by processing each year.
+var class_outTotal = ee.ImageCollection(anos
+                       .map(function(ano){
+                          // Construct band names dynamically.
+                          var anoStr    = ee.Number(ano).format();
+                          var nomeBanda = ee.String('classification_').cat(anoStr);
+                          var connBanda = ee.String('classification_').cat(anoStr).cat('_conn');
+                          var probBanda = ee.String('prob_').cat(anoStr);
+                          
+                          // Apply a focal mode filter to the classification image.
+                          var moda = classREMAP.select(nomeBanda).focalMode(3, 'square', 'pixels')
+                          // Filter the mode image by masking just the pixels with less than 6 connected pixels.
+                                               .mask(classREMAP.select(connBanda).lte(min_connect_pixel));
+                          //Map.addLayer(moda.reproject({crs: 'EPSG:4326',scale: 30}), vis2, 'class_out_'+ano, false);
+
+                          // Blend the original and filtered classifications.
+                          var class_out = classREMAP.select(nomeBanda).blend(moda);
+                          //Map.addLayer(class_out.reproject({crs: 'EPSG:4326',scale: 30}), vis2, 'class_out_'+ano, false);
+
+                          // Load the HAND images.
+                          var hand30_100_5 = ee.ImageCollection('users/gena/global-hand/hand-100')
+                          .mosaic().lt(10);
+                          //Map.addLayer(hand30_100_5, vis_hand, 'hand');
+                           
+                          // Select and create a mask based on the probability image for the current year.
+                          var maskP80_ano = classGAPprob.select(probBanda).gt(60);
+                          //Map.addLayer(maskP80_ano, {palette: 'red,white'}, 'maskP80_ano');
+  
+                          // Create a binary image for flooded areas.
+                          var flo_ano = classREMAP.select(nomeBanda).remap([3],[1]);
+                          //Map.addLayer(flo_ano, {palette: 'orange'}, 'flo_ano');
+                          
+                          // Combine flood areas with probability and HAND data.
+                          var flo80_ano = flo_ano.add(maskP80_ano).add(hand30_100_5).remap([3],[1]);
+                          //Map.addLayer(flo80_ano, {palette: 'yellow'}, 'flo80_ano');
+                          
+                          // Count connected pixels for flooded areas.
+                          var flo80_ano_con = flo80_ano.connectedPixelCount(100, true).reproject('epsg:4326', null, 30);
+                          //print('flo80_ano_con',flo80_ano_con)
+                          //Map.addLayer(flo80_ano_con, {'palette': '#1eff05'}, 'flo80_ano_con');
+    
+                          // Create a binary image for flooded areas with at least 1 connected pixel.
+                          var flo_2pix = flo80_ano_con.gte(1).remap([1],[3]).select(['remapped'],[nomeBanda]);
+                          //Map.addLayer(flo_2pix, {'palette': 'grey'}, 'flo_2pix');
+                          
+                          // Blend the classification image with the flooded areas image.
+                          var class_out2 = class_out.blend(flo_2pix);
+                        
+                          return class_out2;
+  
+})).toBands();
+
+// Function to correct band names after 'toBands()'.
+var corrIndx  = function (img){
+                  var indxNames = img.bandNames();              // creates an ee.List from bands of an ee.Image.
+                  var bandNames = indxNames.map(function(nome){ // remove the index created by .toBands().
+                          return ee.String(nome).split('_').slice(1).join('_');
+                                      });
+                                      
+                    return img.select(indxNames,bandNames);     // replaces bands with 'XX_' created by .toBands() with clean names.
+                              };
+
+// Correct band names and reproject the final classification.
+var class_final = corrIndx(class_outTotal).reproject({
+                            crs: 'EPSG:4326',
+                            scale: 30  // export with 30 m/pixel.
+                              });
+
+// Print and add the final classification to the map.
+print(class_final);
+//Map.setCenter(-47.85706, -21.38321,13);
+Map.addLayer(class_final.reproject({
+                            crs: 'EPSG:4326',
+                            scale: 30  // export with 30 m/pixel.
+                              }), vis, 'class_final');
+// Map.addLayer(class_out2, vis, 'class_out2');
+
+// Set the metadata for the final classification image.
+class_final = class_final
+.set('territory', 'BRAZIL')
+.set('biome', 'MATAATLANTICA')
+.set('source', 'arcplan')
+.set('version', versao_out)
+.set('year', versao_out)
+.set('collection_id', col);
+
+// Export the final classification image to an asset.
+Export.image.toAsset({
+    'image': class_final,
+    'description': prefixo_out+versao_out,
+    'assetId': dirout+prefixo_out+versao_out,
+    'pyramidingPolicy': {
+        '.default': 'mode'
+    },
+    'region': limite_MA,
+    'scale': 30,
+    'maxPixels': 1e13
+});

@@ -1,0 +1,339 @@
+/**
+ * This script merges a set of classified images, one for each of 30 defined regions,
+ * and performs a gap-filling for the entire Atlantic Forest.
+ * 
+ * It loads each regional classification image, applies a mask to remove zero values,
+ * and adds it to a list that is used to create a single mosaic where overlapping regions are combined.
+ * It first fills gaps in each band by using data from the preceding band, then repeats the process in reverse.
+ * 
+ * Uses as input classified images for each of the 30 regions of the Atlantic Forest from scripts 04-XX.
+ * The output data from this script (merged gap-filled image) is used as an input in script 05-30.
+ * 
+ */
+Map.setCenter(-44.0406, -22.2076,12)
+var inicioTempo = ee.Date(Date.now())
+print('Inicio:', inicioTempo);
+
+// Define the geometry for the Atlantic Forest region.
+var limite_MA = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-48.593359954293625, -30.678347823900353],
+          [-47.275000579293625, -25.525376684152373],
+          [-40.595313079293625, -23.284530667538736],
+          [-33.915625579293625, -6.580343714417967],
+          [-35.453711516793625, -4.217995607905081],
+          [-44.198828704293625, -17.856203449528717], 
+          [-50.483008391793625, -17.52126295946964],
+          [-55.712500579293625, -21.74193426005608],
+          [-55.492774016793625, -29.72888025446976]]]);  
+
+// Define variables for images representing classifications for the 30 regions of Atlantic Forest.
+var reg_01 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_01-RF85a24_v3_seed_1"),
+    reg_02 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_02-RF85a24_v4_seed_1"),
+    reg_03 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_03-RF85a24_v4_seed_1"),
+    reg_04 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_04-RF85a24_v4_seed_1"),
+    reg_05 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_05-RF85a24_v3_seed_1"),
+    reg_06 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_06-RF85a24_v3_seed_1"),
+    reg_07 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_07-RF85a24_v3_seed_1"),
+    reg_08 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_08-RF85a24_v3_seed_1"),
+    reg_09 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_09-RF85a24_v3_seed_1"),
+    reg_10 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_10-RF85a24_v3_seed_1"),
+    reg_11 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_11-RF85a24_v3_seed_1"),
+    reg_12 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_12-RF85a24_v3_seed_1"),
+    reg_13 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_13-RF85a24_v3_seed_1"),
+    reg_14 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_14-RF85a24_v3_seed_1"),
+    reg_15 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_15-RF85a24_v3_seed_1"),
+    reg_16 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_16-RF85a24_v3_seed_1"),
+    reg_17 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_17-RF85a24_v3_seed_1"),
+    reg_18 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_18-RF85a24_v3_seed_1"),
+    reg_19 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_19-RF85a24_v3_seed_1"),
+    reg_20 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_20-RF85a24_v3_seed_1"),
+    reg_21 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_21-RF85a24_v3_seed_1"),
+    reg_22 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_22-RF85a24_v3_seed_1"),
+    reg_23 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_23-RF85a24_v3_seed_1"),
+    reg_24 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_24-RF85a24_v3_seed_1"),
+    reg_25 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_25-RF85a24_v3_seed_1"),
+    reg_26 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_26-RF85a24_v3_seed_1"),
+    reg_27 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_27-RF85a24_v3_seed_1"),
+    reg_28 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_28-RF85a24_v3_seed_1"),
+    reg_29 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_29-RF85a24_v3_seed_1"),
+    reg_30 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_30-RF85a24_v3_seed_1");
+
+// Set the connected pixel count flag indicating whether to use 8-connectedness for gap filling.
+var VeightConnected = true;
+
+// Define the description of the process.
+var descricao = 'Merge e Gap Fill';
+
+// Define the collection id.
+var col = 10.0;
+
+// Define input and output directories for assets.
+var dircol = 'projects/mapbiomas-workspace/COLECAO_'+col+'/classificacao-ma/regioes/';
+var dirout = 'projects/mapbiomas-workspace/COLECAO_'+col+'/pos_classificacao-ma/';
+
+// Define the output prefix.
+var prefixo_out = 'MA_col'+col+'_p05a_v';
+
+// Define the output version.
+var versao_out = '2';
+
+// Define the year and biome.
+var ano = 2020;
+var bioma = "MATA ATÂNTICA";
+
+// Load regions feature collection.
+var regioesCollection = ee.FeatureCollection('projects/mapbiomas-workspace/AUXILIAR/Mata_Atlantica_Regioes2025');
+
+////*************************************************************
+// Do not Change from these lines
+////*************************************************************
+
+// Import the palettes module.
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+// Define visualization parameters.
+var vis = {'min': 0,'max': 69,'palette': palettes.get('classification9')};
+var vis2 = {'bands':'classification_'+ano , 'min': 0,'max': 69,'palette': palettes.get('classification9')};
+
+// Initialize an empty list for images.
+var img_col = ee.List([]);
+
+// Load a reference image (LULC Collection 9).
+var colecao = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection9/mapbiomas_collection90_integration_v1');
+Map.addLayer(colecao.select('classification_'+ano), vis, 'LULC Col 9 (LandSat) '+ ano, false);
+
+// Add layers to the map for visualization of each region's classification.
+Map.addLayer(reg_01.select('classification_'+ano), vis, 'reg_01', false);
+Map.addLayer(reg_02.select('classification_'+ano), vis, 'reg_02', false);
+Map.addLayer(reg_03.select('classification_'+ano), vis, 'reg_03', false);
+Map.addLayer(reg_04.select('classification_'+ano), vis, 'reg_04', false);
+Map.addLayer(reg_05.select('classification_'+ano), vis, 'reg_05', false);
+Map.addLayer(reg_06.select('classification_'+ano), vis, 'reg_06', false);
+Map.addLayer(reg_07.select('classification_'+ano), vis, 'reg_07', false);
+Map.addLayer(reg_08.select('classification_'+ano), vis, 'reg_08', false);
+Map.addLayer(reg_09.select('classification_'+ano), vis, 'reg_09', false);
+Map.addLayer(reg_10.select('classification_'+ano), vis, 'reg_10', false);
+Map.addLayer(reg_11.select('classification_'+ano), vis, 'reg_11', false);
+Map.addLayer(reg_12.select('classification_'+ano), vis, 'reg_12', false);
+Map.addLayer(reg_13.select('classification_'+ano), vis, 'reg_13', false);
+Map.addLayer(reg_14.select('classification_'+ano), vis, 'reg_14', false);
+Map.addLayer(reg_15.select('classification_'+ano), vis, 'reg_15', false);
+Map.addLayer(reg_16.select('classification_'+ano), vis, 'reg_16', false);
+Map.addLayer(reg_17.select('classification_'+ano), vis, 'reg_17', false);
+Map.addLayer(reg_18.select('classification_'+ano), vis, 'reg_18', false);
+Map.addLayer(reg_19.select('classification_'+ano), vis, 'reg_19', false);
+Map.addLayer(reg_20.select('classification_'+ano), vis, 'reg_20', false);
+Map.addLayer(reg_21.select('classification_'+ano), vis, 'reg_21', false);
+Map.addLayer(reg_22.select('classification_'+ano), vis, 'reg_22', false);
+Map.addLayer(reg_23.select('classification_'+ano), vis, 'reg_23', false);
+Map.addLayer(reg_24.select('classification_'+ano), vis, 'reg_24', false);
+Map.addLayer(reg_25.select('classification_'+ano), vis, 'reg_25', false);
+Map.addLayer(reg_26.select('classification_'+ano), vis, 'reg_26', false);
+Map.addLayer(reg_27.select('classification_'+ano), vis, 'reg_27', false);
+Map.addLayer(reg_28.select('classification_'+ano), vis, 'reg_28', false);
+Map.addLayer(reg_29.select('classification_'+ano), vis, 'reg_29', false);
+Map.addLayer(reg_30.select('classification_'+ano), vis, 'reg_30', false);
+
+// Add regions feature collection to the map.
+Map.addLayer(regioesCollection);
+
+// Define the list of regions and their last versions.
+var lista_regs =[
+                ['reg_10','3'],['reg_09','3'],['reg_01','3'],
+                ['reg_02','4'],['reg_03','4'],
+                ['reg_06','3'],['reg_07','3'],['reg_08','3'],
+                ['reg_11','3'],['reg_12','3'],['reg_13','3'],['reg_14','3'],['reg_15','3'],
+                ['reg_16','3'],['reg_17','3'],['reg_18','3'],['reg_19','3'],['reg_20','3'],
+                ['reg_27','4'],['reg_21','4'],
+                ['reg_22','3'],['reg_23','3'],
+                ['reg_25','3'],['reg_29','3'],
+                ['reg_26','3'],['reg_28','3'],['reg_30','3'],
+                ['reg_04','4'],['reg_05','4'],['reg_24','3']
+                ];
+  
+// Define the seed and input version.
+var seed = 1;
+//var versao_in = '1';
+
+// Loop through the regions and add their CLASSIFICATION IMAGES to the list.
+for (var i_reg=0;i_reg<lista_regs.length; i_reg++){
+  // Get region ID and version.
+  var regiaoList = lista_regs[i_reg];
+  var regiaoID   = regiaoList[0];
+  var reg_vers   = regiaoList[1];
+  
+  //print(regiaoID);
+  //print(reg_vers);
+  //if (regiaoID == 'reg_01') {var versao_in = '20'}
+  //else {var versao_in = '1'}
+
+  // Load the CLASSIFICATION IMAGE for the current region.
+  var img = ee.Image(dircol + regiaoID+'-RF85a24_v'+reg_vers+'_seed_'+seed);
+  // Add the image to the list, applying a mask to only include non-zero values.
+  img_col = img_col.add(img.selfMask());
+}
+print(img_col);
+
+// Create an image collection from the list of images.
+var img_moda = ee.ImageCollection.fromImages(img_col).mosaic();
+
+// Mask the image to remove zero values.
+var image = img_moda.mask(img_moda.neq(0));
+print(image);
+
+// Define the years to process.
+var years = [
+    1985,1986,1987,1988,1989,1990,1991,1992,1993,1994,
+    1995,1996,1997,1998,1999,2000,2001,2002,2003,2004,
+    2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,
+    2015,2016,2017,2018,2019,2020,2021,2022,2023,2024
+    ];
+
+/**
+ * Applies a gap-filling algorithm to an image.
+ *
+ * This function iteratively fills gaps in a multi-band image by using the values from neighboring bands.
+ * It performs two passes: one from the first band to the last, and another in reverse order.
+ *
+ * @param {ee.Image} image - The input multi-band image.
+ * @return {ee.Image} The gap-filled image.
+ */
+var applyGapFill = function (image) {
+    // Performs a single pass of gap filling, from the first band to the last (from t0 until tn).
+    var imageFilledt0tn = bandNames.slice(1)
+        .iterate(
+            function (bandName, previousImage) {
+                // Select the current band.
+                var currentImage = image.select(ee.String(bandName));
+                // Cast the previous image to an ee.Image.
+                previousImage = ee.Image(previousImage);
+                // Unmask the current band using the last band of the previous image.
+                currentImage = currentImage.unmask(
+                  previousImage.select([0]));
+                // Add the current band to the previous image.
+                return currentImage.addBands(previousImage);
+            },
+            // Initialize the iteration with the first band.
+            ee.Image(imageAllBands.select([bandNames.get(0)]))
+        );
+
+    // Cast the image to an ee.Image.
+    imageFilledt0tn = ee.Image(imageFilledt0tn);
+
+    // Performs a single pass of gap filling, from the last band to the first (from tn until t0).
+    // Reverse the band names list.
+    var bandNamesReversed = bandNames.reverse();
+
+    // Iterate through the reversed band names list.
+    var imageFilledtnt0 = bandNamesReversed.slice(1)
+        .iterate(
+            function (bandName, previousImage) {
+                // Select the current band from the image filled from t0 to tn.
+                var currentImage = imageFilledt0tn.select(ee.String(bandName));
+                // Cast the previous image to an ee.Image.
+                previousImage = ee.Image(previousImage);
+                // Unmask the current image using the last band of the previous image.
+                currentImage = currentImage.unmask(
+                    previousImage.select(previousImage.bandNames().length().subtract(1)));
+                // Add the current band to the previous image.
+                return previousImage.addBands(currentImage);
+            },
+            // Initialize the iteration with the last band.
+            ee.Image(imageFilledt0tn.select([bandNamesReversed.get(0)]))
+        );
+
+    // Cast the image to an ee.Image and select the original band names.
+    imageFilledtnt0 = ee.Image(imageFilledtnt0).select(bandNames);
+
+    // Return the image filled from tn to t0.
+    return imageFilledtnt0;
+};
+
+// Create a list of band names based on the years.
+var bandNames = ee.List(
+    years.map(
+        function (year) {
+            return 'classification_' + String(year);
+        }
+    )
+);
+
+// Generate a histogram dictionary of band names and image band names.
+// Analyze band occurrences to identify bands present in both the input and output images.
+var bandsOccurrence = ee.Dictionary(
+    bandNames.cat(image.bandNames()).reduce(ee.Reducer.frequencyHistogram())
+);
+
+print(bandsOccurrence);
+
+// Create a dictionary of bands with masked bands.
+var bandsDictionary = bandsOccurrence.map(
+    function (key, value) {
+        return ee.Image(
+            ee.Algorithms.If(
+                ee.Number(value).eq(2),
+                // If the band occurs twice, select the band from the original image.
+                image.select([key]).byte(),
+                // If the band occurs once, create a masked band.
+                ee.Image().rename([key]).byte().updateMask(image.select(0))
+            )
+        );
+    }
+);
+
+// Convert the dictionary to an image.
+// Combine all bands into a single image.
+var imageAllBands = ee.Image(
+    bandNames.iterate(
+        function (band, image) {
+            // Add the band from the dictionary to the image.
+            return ee.Image(image).addBands(bandsDictionary.get(ee.String(band)));
+        },
+        // Initialize the image with an empty selection.
+        ee.Image().select()
+    )
+);
+
+// Create an image representing the year for each pixel.
+var imagePixelYear = ee.Image.constant(years)
+    .updateMask(imageAllBands)
+    .rename(bandNames);
+
+// Apply the gap fill function to the images.
+var imageFilledtnt0 = applyGapFill(imageAllBands);
+var imageFilledYear = applyGapFill(imagePixelYear);
+
+// Add the original and filtered images to the map.
+Map.addLayer(image, vis2, 'original',false);
+Map.addLayer(imageFilledtnt0, vis2, 'filtered'); //.mask(bioma250mil_MA)
+//print(imageFilledtnt0);
+
+var fimTempo = ee.Date(Date.now())
+print('Fim:', fimTempo);
+
+var tempo = fimTempo.difference(inicioTempo, 'second').divide(1000);
+print('Tempo total (ms):', tempo);
+
+// Set the metadata for the final classification image.
+var classified85a24 = imageFilledtnt0
+.set('territory', 'BRAZIL')
+.set('biome', 'MATAATLANTICA')
+.set('source', 'arcplan')
+.set('version', versao_out)
+.set('year', versao_out)
+.set('collection_id', col)
+.set('description', descricao);
+//print(classified85a24);
+
+// Export the final classification image to an asset.
+Export.image.toAsset({
+  "image": classified85a24.toInt8(),
+  "description": prefixo_out + versao_out,
+  "assetId": dirout + prefixo_out + versao_out,
+  "scale": 30,
+  "pyramidingPolicy": {
+      '.default': 'mode'
+  },
+  "maxPixels": 1e13,
+  "region": limite_MA
+});

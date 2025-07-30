@@ -1,0 +1,216 @@
+/**
+ * This script performs a spatial filtering of the land cover classification for each year in the time series.
+ * It employs a two-step filtering process:
+ * (a) a general noise removal filter for all classes,
+ * followed by (b) a confidence-based refinement for the forest class.
+ * 
+ * It uses _conn bands (connected pixel count), which are essential for the filtering logic.
+ * And produces a multi-band image where each band represents the classification probability for that year.
+ * All the pixels with less than 6 connected pixels from the same class (diagonal included)
+ * are reclassified with the mode on a 3 pixels window.
+ * 
+ * The script iterates through each year from 1985 to 2024, applying a sequence of filters to each annual map.
+ * The first filter removes small, isolated pixels (salt-and-pepper) of one class.
+ * It assigns the value 21 (Mosaic of Uses) to any no-data areas,
+ * then It applies a mode filter that calculates the most common class value
+ * in a 3x3 pixel neighborhood around every pixel and stores it in a variable.
+ * The mode filter creates a mask on pixels that belong to a patch that is 6 pixels or smaller.
+ * Then substitutes with the new value of these small patches.
+ * This cleans up the map without blurring the edges of major land cover features.
+ * The second filter uses the classification probability image to reinforce the forest class,
+ * preventing the first filter from removing small forest patches.
+ * It first creates a mask of pixels that are both classified as Forest (3) in the input
+ * and have a classification probability greater than 60%,
+ * then calculates the connected pixel count on this mask.
+ * It creates a final correction image that assigns the class 3 (Forest)
+ * only to pixels in this mask that form a patch of 3 pixels or more,
+ * and then blends this result onto the output of the first filter
+ * to prevent the change small, high-confidence forest patches to another class, forcibly change it back to 3 (Forest).
+ * 
+ * It uses as input data output data from script 10-20.
+ * The output data from this script is used as an input in script 10-40.
+ * 
+ */
+
+// Define the geometry for the Atlantic Forest region.
+var limite_MA = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-48.593359954293625, -30.678347823900353],
+          [-47.275000579293625, -25.525376684152373],
+          [-40.595313079293625, -23.284530667538736],
+          [-33.915625579293625, -6.580343714417967],
+          [-35.453711516793625, -4.217995607905081],
+          [-44.198828704293625, -17.856203449528717],
+          [-50.483008391793625, -17.52126295946964],
+          [-55.712500579293625, -21.74193426005608],
+          [-55.492774016793625, -29.72888025446976]]]);
+
+//Map.setCenter(-48.41649, -24.23158,13);
+
+// Define the input and output version numbers.
+var vesion_in = '75_Sf';
+var versao_out = '82_Sf';
+// Define the description of the process.
+var descricao = 'Filtro Espacial';
+// Define the collection id.
+var col = 10.0;
+// Define input and output prefixes for asset naming.
+var prefixo_in  = 'MA_col'+col+'_p10b_v';
+var prefixo_out = 'MA_col'+col+'_p10c_v';
+// Define output directory for assets.
+var dirout = 'projects/mapbiomas-brazil/assets/LAND-COVER/COLLECTION-'+col+'/GENERAL/classification-mat-ft/';
+
+// Load the collection 10 image.
+var imgCol =  ee.Image(dirout+prefixo_in+vesion_in);
+
+// Import the palettes module.
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+// Define visualization parameters.
+var vis = {
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+var vis2 = {
+    'bands': 'classification_2024',
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+
+// Define the minimum number of connected pixels.
+var min_connect_pixel = 6;       // Applies generally.
+var min_connect_pixel_agric = 6; // Applies for agricultural classes.
+
+// Load the biomes image.
+//var biomes = ee.Image('projects/mapbiomas-workspace/AUXILIAR/biomas-raster-41');
+//var bioma250mil_MA = biomes.mask(biomes.eq(2));
+//Map.addLayer(bioma250mil_MA,{'palette': 'ccffcc'}, 'bioma250mil_MA', false);
+
+// Load the classification image and its corresponding classification probability image.
+// The probability image is used in a subsequent step to refine forest classification.
+var class4GAP     = ee.Image(dirout+prefixo_in+vesion_in);//.mask(bioma250mil_MA);
+var class4GAPprob = ee.Image('projects/mapbiomas-workspace/COLECAO_10/pos_classificacao-ma/MA_col10_p05a_v2_prob');//.mask(bioma250mil_MA);
+print(class4GAP);
+print(class4GAPprob);
+
+// Add the classification image to the map.
+Map.addLayer(class4GAP, vis2, 'class4GAP');
+Map.addLayer(imgCol   , vis2, 'imgCol');
+
+// Define the years to process.
+var anos = ['1985','1986','1987','1988','1989','1990','1991','1992','1993','1994',
+            '1995','1996','1997','1998','1999','2000','2001','2002','2003','2004',
+            '2005','2006','2007','2008','2009','2010','2011','2012','2013','2014',
+            '2015','2016','2017','2018','2019','2020','2021','2022','2023','2024'];
+//var anos = ['2023']; // For testing.
+
+// Loop through the years and apply spatial filtering.
+// Start a loop that iterates through each year defined in the `anos` list.
+// Spatial filtering and correction steps will be applied to the classification band for each year.
+for (var i_ano=0;i_ano<anos.length; i_ano++){
+  
+  // Get the current year (as a string) from the list.
+  var ano = anos[i_ano]; 
+  
+  // Select the classification band for the current year from the input image.
+  // Then, unmask the band (filling any masked pixels, default fill value is 0) and remap 0 to 21 (Mosaic of Uses).
+  // This ensures that initially masked areas, which would default to 0 when unmasked,
+  // are treated as Mosaic of Uses before further filtering.
+  var unmasked = class4GAP.select('classification_'+ano).unmask().remap([0],[21]).rename('classification_'+ano);
+  
+  // Blend the original classification with the corrected classifications.
+  // Blend the original classification band for the current year with the unmasked (and remapped) band.
+  // Blending applies the changes from the second image only where the first image has a mask.
+  var class_in = class4GAP.blend(unmasked);
+  
+  // Apply a focal mode filter to the `class_in` image for the current year.
+  // The focal mode calculates the most frequent pixel value within a 3x3 square neighborhood around each pixel.
+  // This helps to smooth the classification and remove small, isolated pixels (salt and pepper noise).
+  var moda = class_in.select('classification_'+ano).focal_mode(3, 'square', 'pixels');
+  //Map.addLayer(moda, vis, 'moda');
+
+  // Mask the image based on the minimum number of connected pixels.
+  // Mask the focal mode result. Keep only pixels where the *original*
+  // classification's connected pixel count is less than or equal to `min_connect_pixel` (6).
+  moda = moda.mask(class_in.select('classification_'+ano+'_conn').lte(min_connect_pixel));
+  //Map.addLayer(moda, vis, 'moda min conn');
+
+  // Blend the original classification image (`class_in`) for the current year with the masked focal mode image (`moda`).
+  // This operation replaces the class of pixels that had a small connected pixel count (based on the mask applied to `moda`)
+  // with the mode value calculated in their neighborhood. Areas with large connected pixel counts retain their original class.
+  var class_out = class_in.select('classification_'+ano).blend(moda);
+  
+  // Select the probability band for the current year from the probability image.
+  // Create a binary mask where the probability of the classified class is greater than 60%.
+  var class4GAPprob_ano = class4GAPprob.select('prob_'+ano).gt(60);
+
+  // Create a binary image mask representing forest areas from the `class_in` image for the current year.
+  // Remap class 3 (Forest Formation) to 1 (all other classes to 0).
+  var flo_ano = class_in.select('classification_'+ano).remap([3],[1]);
+
+  // Combine the binary forest mask (`flo_ano`) with the probability mask (`class4GAPprob_ano`).
+  // The `add` operation will result in values of: 0 (neither mask is 1), 1 (one mask is 1), or 2 (both masks are 1).
+  // Remap value 2 to 1, effectively creating a mask where a pixel is either classified as Forest
+  // AND has probability > 60% OR falls under this category after the initial blends.
+  var flo_90_ano = flo_ano.add(class4GAPprob_ano).remap([2],[1]);
+
+  // Calculate the number of connected pixels for the areas identified in `flo_90_ano` (forest areas).
+  // Pixels must have a value of 1 in `flo_90_ano` to be included in the connected pixel count.
+  // The `true` flag specifies that the defined connectivitynumber  should be used.
+  // Reproject the connected pixel count result to ensure standard projection and resolution.
+  var flo_90_ano_con = flo_90_ano.connectedPixelCount(10, true).reproject('epsg:4326', null, 30);
+  //print('flo_90_ano_con',flo_90_ano_con);
+  //Map.addLayer(flo_90_ano_con, {'palette': '#1eff05'}, 'flo_90_ano_con');
+  
+  // Create a binary image mask from `flo_90_ano_con`, identifying areas with a connected pixel count of 3 or more.
+  // Remap value 1 (pixels meeting the condition) to 3, and rename the band for blending.
+  var flo_3pix = flo_90_ano_con.gte(3).remap([1],[3]).select(['remapped'],['classification_'+ano]);
+  //Map.addLayer(flo_3pix, {'palette': '#1eff05'}, 'flo_3pix');
+  
+  // Blend the classification image with the forest areas image.
+  // Blend the classification image from the spatial filter (`class_out`) with the `flo_3pix` mask.
+  // This operation intends to force pixels identified in `flo_3pix` (connected >= 3 high-confidence potential forest)
+  // to a value of 3 (Forest Formation) where the blend image has a mask (or opacity).
+  var class_out2 = class_out.blend(flo_3pix);
+  
+  // Combine the results for all years.
+  // Combine the resulting corrected classification band for the current year (`class_out2`)
+  // with the accumulating multi-year result image (`class_outTotal`).
+  if (i_ano == 0){ var class_outTotal = class_out2; }  
+  else {class_outTotal = class_outTotal.addBands(class_out2); }
+}
+
+// Define the final classification image.
+var class_final = class_outTotal;
+
+// Print the final classification image.
+print(class_final);
+
+// Add the final classification image to the map.
+Map.addLayer(class_final, vis2, 'class_final');
+Map.addLayer(class_in, vis2, 'class_in');
+Map.addLayer(unmasked, vis, 'unmasked');
+//Map.addLayer(class_out2, vis, 'class_out2');
+
+// Set the metadata for the final classification image.
+class_final = class_final
+.set('territory', 'BRAZIL')
+.set('biome', 'MATAATLANTICA')
+.set('source', 'arcplan')
+.set('version', versao_out)
+.set('year', versao_out)
+.set('collection_id', col);
+
+// Export the final classification image to an asset.
+Export.image.toAsset({
+    'image': class_final,
+    'description': prefixo_out+versao_out,
+    'assetId': dirout+prefixo_out+versao_out,
+    'pyramidingPolicy': {
+        '.default': 'mode'
+    },
+    'region': limite_MA,
+    'scale': 30,
+    'maxPixels': 1e13
+});
