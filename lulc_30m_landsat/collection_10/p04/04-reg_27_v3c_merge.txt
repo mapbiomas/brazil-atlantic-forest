@@ -1,0 +1,120 @@
+/**
+ * These scripts classify each region according to the list of most important bands (feature importance),
+ * with stable samples, using Random Forest, with 100 trees.
+ * 
+ * In this step it is possible to change the balance of each class and collect additional samples.
+ * In addition to the regions, there are two scripts that classify agricultural areas in the northeast (NE) and southeast (SE) of Brazil.
+ * These data are used by the agriculture team (Remap) and then transformed into mosaic of uses (class 21) in the Atlantic Forest data.
+ * 
+ * This script has 5 Geometry imports, used as complementary samples:
+ * varzea, restinga, reflo, agro, flo
+ * 
+ * Data from scripts 03-10 e 03-20 are used as input.
+ * The output data from each region, plus the agricultural areas will be used as an input in script 05-10.
+ * 
+ * This script had an error processing the years 2008 and 2009, due to lack of training points.
+ * Two new scripts complement these years in this region. (v3b e v3c)
+ * This script combines the years 2008 and 2009 with the data from scripts v3a and v3b, and exports to an asset.
+ * 
+ */
+
+// Load classified images and probability images for region reg_27 from previous scripts.
+var reg_27_v3 = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_27-RF85a24_v3_seed_1"),
+    reg_27_v4_2anos = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_27-RF85a24_v4_2008_2009_seed_1"),
+    reg_27_v3_prob = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_27-RF85a24_v3_prob"),
+    reg_27_v4_2anos_prob = ee.Image("projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/reg_27-RF85a24_v4_2008_2009_prob");
+
+// Define output parameters.
+var versao_out = '4';
+var col = 10;
+var nome_out = 'RF85a24_v';
+var dirout = 'projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/';
+var regiaoID = 'reg_27';
+var seed = 1;
+
+// Import palettes module.
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+var vis = {'min': 0,'max': 69,'palette': palettes.get('classification9')};
+
+// Combine classification bands from versions reg_27_v3 e reg_27_v4_2anos. Merges data from scripts v3a and v3b.
+var reg27 = reg_27_v3.select( // except 2008 and 2009
+                     'classification_1985','classification_1986','classification_1987','classification_1988','classification_1989','classification_1990',
+                     'classification_1991','classification_1992','classification_1993','classification_1994','classification_1995','classification_1996',
+                     'classification_1997','classification_1998','classification_1999','classification_2000','classification_2001','classification_2002',
+                     'classification_2003','classification_2004','classification_2005','classification_2006','classification_2007',
+                                           'classification_2010','classification_2011','classification_2012','classification_2013','classification_2014',
+                     'classification_2015','classification_2016','classification_2017','classification_2018','classification_2019','classification_2020',
+                     'classification_2021','classification_2022','classification_2023','classification_2024')
+                     .addBands(reg_27_v4_2anos)
+                     .select(
+                     'classification_1985','classification_1986','classification_1987','classification_1988','classification_1989','classification_1990',
+                     'classification_1991','classification_1992','classification_1993','classification_1994','classification_1995','classification_1996',
+                     'classification_1997','classification_1998','classification_1999','classification_2000','classification_2001','classification_2002',
+                     'classification_2003','classification_2004','classification_2005','classification_2006','classification_2007','classification_2008',
+                     'classification_2009','classification_2010','classification_2011','classification_2012','classification_2013','classification_2014',
+                     'classification_2015','classification_2016','classification_2017','classification_2018','classification_2019','classification_2020',
+                     'classification_2021','classification_2022','classification_2023','classification_2024');
+                     //print(reg27);
+
+// Display combined classification for year 2008.
+Map.addLayer(reg27.select('classification_2008'), vis, '2008');
+                    
+// Combine probability bands from versions reg_27_v3_prob e reg_27_v4_2anos_prob. Merges data from scripts v3a and v3b.
+var reg27_prob = reg_27_v3_prob.select( // except 2008 and 2009
+                     'prob_1985','prob_1986','prob_1987','prob_1988','prob_1989','prob_1990',
+                     'prob_1991','prob_1992','prob_1993','prob_1994','prob_1995','prob_1996',
+                     'prob_1997','prob_1998','prob_1999','prob_2000','prob_2001','prob_2002',
+                     'prob_2003','prob_2004','prob_2005','prob_2006','prob_2007',
+                                 'prob_2010','prob_2011','prob_2012','prob_2013','prob_2014',
+                     'prob_2015','prob_2016','prob_2017','prob_2018','prob_2019','prob_2020',
+                     'prob_2021','prob_2022','prob_2023','prob_2024')
+                     .addBands(reg_27_v4_2anos_prob)
+                     .select(
+                     'prob_1985','prob_1986','prob_1987','prob_1988','prob_1989','prob_1990',
+                     'prob_1991','prob_1992','prob_1993','prob_1994','prob_1995','prob_1996',
+                     'prob_1997','prob_1998','prob_1999','prob_2000','prob_2001','prob_2002',
+                     'prob_2003','prob_2004','prob_2005','prob_2006','prob_2007','prob_2008',
+                     'prob_2009','prob_2010','prob_2011','prob_2012','prob_2013','prob_2014',
+                     'prob_2015','prob_2016','prob_2017','prob_2018','prob_2019','prob_2020',
+                     'prob_2021','prob_2022','prob_2023','prob_2024');
+                     print(reg27_prob);
+
+// Set metadata for the combined classification image.
+reg27 = reg27
+.set('territory', 'BRAZIL')
+.set('biome', 'MATA ATLANTICA')
+.set('source', 'arcplan')
+.set('version', versao_out)
+.set('collection_id', col);
+
+// Set metadata for the combined probability image.
+reg27_prob = reg27_prob
+.set('territory', 'BRAZIL')
+.set('biome', 'MATA ATLANTICA')
+.set('source', 'arcplan')
+.set('version', versao_out)
+.set('collection_id', col);
+
+// Export the combined classification image to an asset.
+Export.image.toAsset({
+  "image": reg27.toInt8(),
+  "description": regiaoID+'-'+nome_out+versao_out+'_seed_'+seed,
+  "assetId": dirout + regiaoID+'-'+nome_out+versao_out+'_seed_'+seed,
+  "scale": 30,
+  "pyramidingPolicy": {
+      '.default': 'mode'
+  },
+  "maxPixels": 1e13,
+});  
+
+// Export the combined probability image to an asset.
+Export.image.toAsset({
+  "image": reg27_prob.toInt8(),
+  "description": regiaoID+'-'+nome_out+versao_out+'_prob',
+  "assetId": dirout + regiaoID+'-'+nome_out+versao_out+'_prob',
+  "scale": 30,
+  "pyramidingPolicy": {
+      '.default': 'mode'
+  },
+  "maxPixels": 1e13,
+});  

@@ -1,0 +1,329 @@
+/**
+ * This script performs a temporal filter analysing a five-year moving window to correct
+ * a 3-year classification change. It focuses on refining the classification of specific classes (3, 4, 11, 12, 21, 22, 29, 50).
+ * 
+ * It improves the temporal consistency of the classification by identifying and correcting specific,
+ * short-lived classification changes over the years, when pixels of the land cover classification
+ * changes to a new type for just three years before changing back.
+ * It assumes this short-lived change is a classification error, not a real change on the ground.
+ * 
+ * The ‘window5y’ function works in the same way as the 4-year temporal window.
+ * The only difference is that it is used three separate times throughout the script.
+ * Each time is used a different list of years (anos_1, anos_3, anos_2)
+ * that are stepped by -3 but start at a different offset (2021, 2023, 2022),
+ * to ensure that the moving window covers every possible 3-year interval in the time series
+ * and that each modification made on previous iterations wont affect the others coming after.
+ * 
+ * It uses as input data output data from script 08-10.
+ * The output data from this script is used as an input in script 09-10.
+ * 
+ */
+
+// Define the geometry for the Atlantic Forest region.
+var limite_MA = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-48.593359954293625, -30.678347823900353],
+          [-47.275000579293625, -25.525376684152373],
+          [-40.595313079293625, -23.284530667538736],
+          [-33.915625579293625, -6.580343714417967],
+          [-35.453711516793625, -4.217995607905081],
+          [-44.198828704293625, -17.856203449528717],
+          [-50.483008391793625, -17.52126295946964],
+          [-55.712500579293625, -21.74193426005608],
+          [-55.492774016793625, -29.72888025446976]]]);
+
+//Map.setCenter(-49.38849, -25.39505,14);
+
+// Define the input and output version numbers.
+var vesion_in = '44';
+var versao_out = '45';
+// Define the description of the process.
+var descricao = 'Filtro de 4 anos';
+// Define the collection id.
+var col = 10.0;
+// Define input and output prefixes for asset naming.
+var prefixo_in  = 'MA_col'+col+'_p08a_v';
+var prefixo_out = 'MA_col'+col+'_p08b_v';
+// Define output directory for assets.
+var dirout = 'projects/mapbiomas-brazil/assets/LAND-COVER/COLLECTION-'+col+'/GENERAL/classification-mat-ft/';
+
+// Load the collection 10 image.
+var imgCol =  ee.Image(dirout+prefixo_in+vesion_in);
+
+// Import the palettes module.
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+// Define visualization parameters.
+var vis = {
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+var vis2 = {
+    'bands': 'classification_2020',
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+
+// Create a list of years to process.
+var anos = ee.List.sequence(1985,2024)                                                           
+                  .map(function(y){                                                     
+                        return ee.Number(y).int(); });
+                        
+// Function to correct band names.
+var corrIndx  = function (img){
+                  var indxNames = img.bandNames();
+                  var bandNames = indxNames.map(function(nome){
+                          return ee.String(nome).split('_').slice(1).join('_');
+                                      });
+                                      
+                    return img.select(indxNames,bandNames);
+                              };
+                              
+// Get the last three years from the 'anos' list.
+var n = anos.size(); // list size.
+var ultimo = ee.Number(anos.get(n.subtract(1))); // Get the last year.
+var penult = ee.Number(anos.get(n.subtract(2))); // Get the second to last year.
+var antpen = ee.Number(anos.get(n.subtract(3))); // Get the third to last year.
+
+print(ultimo);
+print(penult);
+print(antpen);
+
+// Create first list of years for the 5-year window.
+var anos_1 = ee.List.sequence(2021,1988,-3)
+                  .map(function(y){
+                        return ee.Number(y).int(); });
+                        
+// Function to apply a 5-year temporal moving window filter.
+var window5y = function(img, classe){
+                    
+ // Create initial image with bands for the last three years.
+ var class_final =                      img.select(ee.String('classification_').cat(ultimo)).rename(ee.String('00_classification_').cat(ultimo));
+     class_final = class_final.addBands(img.select(ee.String('classification_').cat(penult)).rename(ee.String('00_classification_').cat(penult)));
+     class_final = class_final.addBands(img.select(ee.String('classification_').cat(antpen)).rename(ee.String('00_classification_').cat(antpen)));
+                      
+                  // Create an image collection for each year in the 5-year window.
+                  var classWind = ee.ImageCollection(anos_1.map(function(ano){
+                    ano = ee.Number(ano);
+                    var anoStr = ano.format();  
+                    var nomeBanda = ee.String('classification_').cat(anoStr);
+                    
+                    // Select the classification for the current year.
+                    var class_ano = img.select(ee.String('classification_').cat(anoStr));
+                    
+                    // Create a mask based on the condition that the current year's class is equal to the input class,
+                    // and the previous and next years are also equal (eq) to the input class, while the two years before
+                    // and after are not equal (neq) to the input class.
+                    var mask_5 = img.select(ee.String('classification_').cat(ano.add(1).format()))     .neq(classe)
+                            .and(img.select(ee.String('classification_').cat(anoStr))                   .eq(classe))
+                            .and(img.select(ee.String('classification_').cat(ano.subtract(1).format())) .eq(classe))
+                            .and(img.select(ee.String('classification_').cat(ano.subtract(2).format())) .eq(classe))
+                            .and(img.select(ee.String('classification_').cat(ano.subtract(3).format())).neq(classe));
+                            
+                    // Remap the classification for the previous year and apply the mask.
+                    mask_5 = img.select(ee.String('classification_').cat(ano.subtract(3).format()))
+                                .remap([3,4,11,12,21,22,29,50],
+                                       [3,4,11,12,21,22,29,50]).updateMask(mask_5);
+                    
+                    // Blend the original classification with the masked classification.
+                    var class_corr = class_ano.blend(mask_5.rename(ee.String('classification_').cat(anoStr)));
+                    // Blend the original classification for the previous year with the masked classification.
+                    var class_corr2 = img.select(ee.String('classification_').cat(ano.subtract(1).format()))
+                                         .blend(mask_5.rename(ee.String('classification_').cat(ano.subtract(1).format())));
+                    // Blend the original classification for the previous year with the masked classification.
+                    var class_corr3 = img.select(ee.String('classification_').cat(ano.subtract(2).format()))
+                                         .blend(mask_5.rename(ee.String('classification_').cat(ano.subtract(2).format())));
+ 
+                    // Return the blended images for the current and surrounding years.
+                    return class_corr.addBands(class_corr2).addBands(class_corr3);
+                  })).toBands();
+                  
+    // Add the initial image bands and the processed image collection bands.
+    class_final = class_final.addBands(classWind).addBands(img.select('classification_1985').rename(ee.String('00_classification_1985')));
+
+// Correct band names and return the result.
+var corrigidaFinal = corrIndx(class_final);
+        // print('corrigidaFinal',corrigidaFinal);
+                return corrigidaFinal;
+};
+
+// Apply the 5-year filter iteratively for different classes.
+var filtered = window5y(imgCol, 22);
+  filtered = window5y(filtered, 50);
+  filtered = window5y(filtered, 29);
+  filtered = window5y(filtered, 21);
+  filtered = window5y(filtered,  3);
+  filtered = window5y(filtered, 12);
+  filtered = window5y(filtered, 11);
+  filtered = window5y(filtered,  4);
+
+print('1',filtered);
+
+// Create second list of years for a second iteration of the 5-year filter.
+var anos_3 = ee.List.sequence(2023,1990,-3)                                                           
+                  .map(function(y){                                                     
+                        return ee.Number(y).int(); });
+                        
+// Second iteration of the 5-year temporal moving window filter.
+var window5y = function(img, classe){
+                    
+  // Select the classification band for the last year and rename it.
+  var class_final2 = img.select(ee.String('classification_').cat(ultimo)).rename(ee.String('00_classification_').cat(ultimo));
+
+                  // Create an image collection for each year in the 5-year window using the anos_3 sequence.
+                  var classWind = ee.ImageCollection(anos_3.map(function(ano){
+                    ano = ee.Number(ano);
+                    var anoStr = ano.format();  
+                    var nomeBanda = ee.String('classification_').cat(anoStr);
+                    
+                    // Select the classification for the current year.
+                    var class_ano = img.select(ee.String('classification_').cat(anoStr));
+                    
+                    // Create a mask based on the condition that the current year's class is equal to the input class,
+                    // and the previous and next years are also equal (eq) to the input class, while the two years before
+                    // and after are not equal (neq) to the input class.
+                    var mask_5 = img.select(ee.String('classification_').cat(ano.add(1).format()))     .neq(classe)
+                            .and(img.select(ee.String('classification_').cat(anoStr))                   .eq(classe))
+                            .and(img.select(ee.String('classification_').cat(ano.subtract(1).format())) .eq(classe))
+                            .and(img.select(ee.String('classification_').cat(ano.subtract(2).format())) .eq(classe))
+                            .and(img.select(ee.String('classification_').cat(ano.subtract(3).format())).neq(classe));
+                            
+                    // Remap the classification for the previous year and apply the mask.
+                    mask_5 = img.select(ee.String('classification_').cat(ano.subtract(3).format()))
+                                .remap([3,4,11,12,21,22,29,50],
+                                       [3,4,11,12,21,22,29,50]).updateMask(mask_5);
+                    
+                    // Blend the original classification with the masked classification.
+                    var class_corr = class_ano.blend(mask_5.rename(ee.String('classification_').cat(anoStr)));
+                    // Blend the original classification for the previous year with the masked classification.
+                    var class_corr2 = img.select(ee.String('classification_').cat(ano.subtract(1).format()))
+                                         .blend(mask_5.rename(ee.String('classification_').cat(ano.subtract(1).format())));
+                    // Blend the original classification for the previous year with the masked classification.
+                    var class_corr3 = img.select(ee.String('classification_').cat(ano.subtract(2).format()))
+                                         .blend(mask_5.rename(ee.String('classification_').cat(ano.subtract(2).format())));
+ 
+                    // Return the blended images for the current and surrounding years.
+                    return class_corr.addBands(class_corr2).addBands(class_corr3);
+                  })).toBands();
+                  
+  // Add the processed bands to the final image, including bands for 1985, 1986, and 1987.
+  class_final2 = class_final2.addBands(classWind).addBands(img.select('classification_1987').rename(ee.String('00_classification_1987')))
+                                                 .addBands(img.select('classification_1986').rename(ee.String('00_classification_1986')))
+                                                 .addBands(img.select('classification_1985').rename(ee.String('00_classification_1985')));
+
+  // Correct band names using the corrIndx function and return the result.
+  var corrigidaFinal = corrIndx(class_final2);
+          // print('corrigidaFinal2',corrigidaFinal);
+                  return corrigidaFinal;
+};
+
+// Apply the 5-year filter iteratively for different classes.
+filtered = window5y(filtered, 22);
+filtered = window5y(filtered, 50);
+filtered = window5y(filtered, 29);
+filtered = window5y(filtered, 21);
+filtered = window5y(filtered,  3);
+filtered = window5y(filtered, 12);
+filtered = window5y(filtered, 11);
+filtered = window5y(filtered,  4);
+
+print('3',filtered);
+
+// Create another list of years for a third iteration of the 5-year filter.
+var anos_2 = ee.List.sequence(2022,1989,-3)                                                           
+                  .map(function(y){                                                     
+                        return ee.Number(y).int(); });
+
+// Third iteration of the 5-year filter (similar to the previous iterations).
+var window5y = function(img, classe){
+                    
+  // Select the classification band for the last year and rename it. Then add the classification band for the second to last year and rename it.
+  var class_final3 =                       img.select(ee.String('classification_').cat(ultimo)).rename(ee.String('00_classification_').cat(ultimo));
+      class_final3 = class_final3.addBands(img.select(ee.String('classification_').cat(penult)).rename(ee.String('00_classification_').cat(penult)));
+
+                  // Create an image collection for each year in the 5-year window using the anos_2 sequence.
+                  var classWind = ee.ImageCollection(anos_2.map(function(ano){
+                    ano = ee.Number(ano);
+                    var anoStr = ano.format();  
+                    var nomeBanda = ee.String('classification_').cat(anoStr);
+                    
+                    // Select the classification for the current year.
+                    var class_ano = img.select(ee.String('classification_').cat(anoStr));
+                    
+                    // Create a mask based on the condition that the current year's class is equal to the input class,
+                    // and the previous and next years are also equal (eq) to the input class, while the two years before
+                    // and after are not equal (neq) to the input class.
+                    var mask_5 = img.select(ee.String('classification_').cat(ano.add(1).format()))     .neq(classe)
+                            .and(img.select(ee.String('classification_').cat(anoStr))                   .eq(classe))
+                            .and(img.select(ee.String('classification_').cat(ano.subtract(1).format())) .eq(classe))
+                            .and(img.select(ee.String('classification_').cat(ano.subtract(2).format())) .eq(classe))
+                            .and(img.select(ee.String('classification_').cat(ano.subtract(3).format())).neq(classe));
+                            
+                    // Remap the classification for the previous year and apply the mask.
+                    mask_5 = img.select(ee.String('classification_').cat(ano.subtract(3).format()))
+                                .remap([3,4,11,12,21,22,29,50],
+                                       [3,4,11,12,21,22,29,50]).updateMask(mask_5);
+                    
+                    // Blend the original classification with the masked classification.
+                    var class_corr = class_ano.blend(mask_5.rename(ee.String('classification_').cat(anoStr)));
+                    // Blend the original classification for the previous year with the masked classification.
+                    var class_corr2 = img.select(ee.String('classification_').cat(ano.subtract(1).format()))
+                                         .blend(mask_5.rename(ee.String('classification_').cat(ano.subtract(1).format())));
+                    // Blend the original classification for the previous year with the masked classification.
+                    var class_corr3 = img.select(ee.String('classification_').cat(ano.subtract(2).format()))
+                                         .blend(mask_5.rename(ee.String('classification_').cat(ano.subtract(2).format())));
+ 
+                    // Return the blended images for the current and surrounding years.
+                    return class_corr.addBands(class_corr2).addBands(class_corr3);
+                  })).toBands();
+                  
+  // Add the processed bands to the final image, including bands for 1985 and 1986.
+  class_final3 = class_final3.addBands(classWind).addBands(img.select('classification_1986').rename(ee.String('00_classification_1986')))
+                                                 .addBands(img.select('classification_1985').rename(ee.String('00_classification_1985')));
+
+  // Correct band names using the corrIndx function and return the result.
+  var corrigidaFinal = corrIndx(class_final3);
+          // print('corrigidaFinal3',corrigidaFinal);
+                  return corrigidaFinal;
+};
+
+// Apply the 5-year filter iteratively for different classes.
+filtered = window5y(filtered, 22);
+filtered = window5y(filtered, 50);
+filtered = window5y(filtered, 29);
+filtered = window5y(filtered, 21);
+filtered = window5y(filtered,  3);
+filtered = window5y(filtered, 12);
+filtered = window5y(filtered, 11);
+filtered = window5y(filtered,  4);
+
+print('2',filtered);
+
+// Add layers to the map for visualization.
+Map.addLayer(filtered, {}, 'filtered', false);
+Map.addLayer(imgCol.select('classification_2020'), vis, 'imgCol', true);
+Map.addLayer(filtered.select('classification_2020'), vis, 'class_final3', true);
+
+// Set the metadata for the final classification image.
+filtered = filtered
+.set('territory', 'MATAATLANTICA')
+.set('biome', 'MATAATLANTICA')
+.set('source', 'arcplan')
+.set('version', versao_out)
+.set('year', versao_out)
+.set('collection_id', col)
+.set('description', descricao);
+
+// Export the final classification image to an asset.
+Export.image.toAsset({
+    "image": filtered.toInt8(),
+    'description': prefixo_out+versao_out,
+    'assetId': dirout+prefixo_out+versao_out,
+    "scale": 30,
+    "pyramidingPolicy": {
+        '.default': 'mode'
+    },
+    "maxPixels": 1e13,
+    "region": limite_MA
+});

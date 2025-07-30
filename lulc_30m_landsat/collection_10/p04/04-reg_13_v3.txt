@@ -1,0 +1,686 @@
+var varzea = /* color: #d63000 */ee.FeatureCollection(
+        [ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-52.817921029204676, -25.88887186386031],
+                  [-52.814916955107996, -25.88713446984438],
+                  [-52.81225620376522, -25.886671160455354],
+                  [-52.81414447891171, -25.886400895805483],
+                  [-52.81633316146786, -25.88728890590336]]]),
+            {
+              "reference": 11,
+              "system:index": "0"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-52.505051855530894, -25.641673347370265],
+                  [-52.50711179205433, -25.643336960884163],
+                  [-52.503292326417125, -25.642485812680906]]]),
+            {
+              "reference": 11,
+              "system:index": "1"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-53.500737335806576, -24.842404604027838],
+                  [-53.500994827872006, -24.834771295686938],
+                  [-53.50193896544525, -24.83695228896029],
+                  [-53.50168147337982, -24.841469938502605]]]),
+            {
+              "reference": 11,
+              "system:index": "2"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-53.538116812025926, -24.727172001493475],
+                  [-53.53768765858354, -24.731381816950407],
+                  [-53.53657185963335, -24.728653249102155]]]),
+            {
+              "reference": 11,
+              "system:index": "3"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-53.40153059297885, -24.695908944172],
+                  [-53.402903883994476, -24.700977569862918],
+                  [-53.403676360190765, -24.705266245901864],
+                  [-53.407452910483734, -24.71049043354728],
+                  [-53.40110143953647, -24.705656118219043],
+                  [-53.401702254355804, -24.703472817522986],
+                  [-53.39998564058627, -24.70105554710893],
+                  [-53.39981397920932, -24.699106101314833]]]),
+            {
+              "reference": 11,
+              "system:index": "4"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-53.62200853566154, -24.53501329778091],
+                  [-53.62441179493889, -24.54461687325328],
+                  [-53.62329599598869, -24.54383612220707],
+                  [-53.620721075334394, -24.53649682491202]]]),
+            {
+              "reference": 11,
+              "system:index": "5"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-53.70536689734124, -24.567389422306526],
+                  [-53.704079437014094, -24.564891455508963],
+                  [-53.70674018835687, -24.566452690591422]]]),
+            {
+              "reference": 11,
+              "system:index": "6"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-53.86658405501782, -24.65449187344702],
+                  [-53.865124933313716, -24.654569879767436],
+                  [-53.86049007613598, -24.651995645456584],
+                  [-53.86383747298657, -24.652073653336807],
+                  [-53.86426662642895, -24.65371180756188],
+                  [-53.86581157882153, -24.652931736802255]]]),
+            {
+              "reference": 11,
+              "system:index": "7"
+            })]),
+    agro = /* color: #bf04c2 */ee.FeatureCollection(
+        [ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.99713538224399, -24.582610752905584],
+                  [-52.00056860978305, -24.58183023845786],
+                  [-51.99756453568637, -24.583781515457066]]]),
+            {
+              "reference": 21,
+              "system:index": "0"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-52.030695181438325, -24.565906682186174],
+                  [-52.031725149700044, -24.567311783254528],
+                  [-52.028721075603364, -24.5674679046231]]]),
+            {
+              "reference": 21,
+              "system:index": "1"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-52.03764746720493, -24.55981772888035],
+                  [-52.03953574235141, -24.560286120403685],
+                  [-52.03764746720493, -24.56091063971276]]]),
+            {
+              "reference": 21,
+              "system:index": "2"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.911605776717415, -24.636232434676632],
+                  [-51.90903085606312, -24.636076399077055],
+                  [-51.90894502537464, -24.6343599946202]]]),
+            {
+              "reference": 21,
+              "system:index": "3"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.84043588368671, -24.695688000089337],
+                  [-51.83846177785175, -24.69584396115443],
+                  [-51.8400925609328, -24.693660488478034]]]),
+            {
+              "reference": 21,
+              "system:index": "4"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.86833085744159, -24.7461312157645],
+                  [-51.86618509022968, -24.746832754605126],
+                  [-51.8620652171828, -24.746287113626803],
+                  [-51.86266603200214, -24.745429672964626],
+                  [-51.865498444721865, -24.746209164720096],
+                  [-51.867730042622256, -24.745507622360133]]]),
+            {
+              "reference": 21,
+              "system:index": "5"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.93373384206073, -24.777930329980812],
+                  [-51.936909577534365, -24.777151037257696],
+                  [-51.937167069599795, -24.777774471827605],
+                  [-51.93536462514179, -24.77863168924847]]]),
+            {
+              "reference": 21,
+              "system:index": "6"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-52.011324784443545, -24.788294457892786],
+                  [-52.01175393788593, -24.78689184461293],
+                  [-52.01269807545917, -24.787593153234933],
+                  [-52.012097260639834, -24.78938536836993]]]),
+            {
+              "reference": 21,
+              "system:index": "7"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.976134202168154, -24.80769564776704],
+                  [-51.969611069843936, -24.804267545859798],
+                  [-51.97716417042987, -24.805825785751455]]]),
+            {
+              "reference": 21,
+              "system:index": "8"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.977850815937686, -24.814162036446294],
+                  [-51.97553338734882, -24.819381646253362],
+                  [-51.97604837147968, -24.814863190846346]]]),
+            {
+              "reference": 21,
+              "system:index": "9"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.907433714457014, -24.85692519162151],
+                  [-51.90219804245994, -24.854043621789014],
+                  [-51.90794869858787, -24.854666669603393]]]),
+            {
+              "reference": 21,
+              "system:index": "10"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.92957803208397, -24.857548224920322],
+                  [-51.93198129136131, -24.85801549783466],
+                  [-51.930350508280256, -24.8592615503081]]]),
+            {
+              "reference": 21,
+              "system:index": "11"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.82307231893543, -24.875017606774104],
+                  [-51.82058322896961, -24.87439466150952],
+                  [-51.82152736654285, -24.873304499740357],
+                  [-51.823930625820196, -24.873849581827045]]]),
+            {
+              "reference": 21,
+              "system:index": "12"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.71013308127515, -24.94749721508374],
+                  [-51.710562234717536, -24.944773406991303],
+                  [-51.711334710913825, -24.946952458283945]]]),
+            {
+              "reference": 21,
+              "system:index": "13"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.70129252036207, -24.965239404738398],
+                  [-51.70000506003492, -24.966484374660883],
+                  [-51.69974756796949, -24.964227857402605]]]),
+            {
+              "reference": 21,
+              "system:index": "14"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.63894082236699, -25.03158651702435],
+                  [-51.63739586997441, -25.033375191268426],
+                  [-51.6352501027625, -25.03244197317713]]]),
+            {
+              "reference": 21,
+              "system:index": "15"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.63250352073125, -25.002575247350467],
+                  [-51.63173104453496, -25.005064418641282],
+                  [-51.630100261453904, -25.005531132643338]]]),
+            {
+              "reference": 21,
+              "system:index": "16"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.46730383830637, -24.995261260894274],
+                  [-51.4661022086677, -24.995261260894274],
+                  [-51.46730383830637, -24.992771891007216],
+                  [-51.46807631450266, -24.994561130709823]]]),
+            {
+              "reference": 21,
+              "system:index": "17"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.46738966899485, -24.982502707318726],
+                  [-51.46412810283274, -24.982813907305488],
+                  [-51.46532973247141, -24.981335700354194]]]),
+            {
+              "reference": 21,
+              "system:index": "18"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.43082579570383, -24.983202906181443],
+                  [-51.427735890918676, -24.984681090686927],
+                  [-51.42807921367258, -24.982502707318726]]]),
+            {
+              "reference": 21,
+              "system:index": "19"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.0667291545833, -25.276114619615928],
+                  [-51.06466921805986, -25.27487280026619],
+                  [-51.0652700328792, -25.27370858308404]]]),
+            {
+              "reference": 21,
+              "system:index": "20"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.09050425529131, -25.290084211477858],
+                  [-51.09024676322588, -25.2875232400767],
+                  [-51.09170588492998, -25.288764929934295]]]),
+            {
+              "reference": 21,
+              "system:index": "21"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.047935441597865, -25.34069084039674],
+                  [-51.04905124054806, -25.33921696421616],
+                  [-51.0499953781213, -25.34100112783115]]]),
+            {
+              "reference": 21,
+              "system:index": "22"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.11093516693966, -25.36202124785354],
+                  [-51.111535981759, -25.36465820049196],
+                  [-51.110076860054896, -25.364813313561367]]]),
+            {
+              "reference": 21,
+              "system:index": "23"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.83065076959583, -24.412791756257636],
+                  [-51.82859083307239, -24.408727543082996],
+                  [-51.837173901920046, -24.412166501208624]]]),
+            {
+              "reference": 21,
+              "system:index": "24"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-51.22537275445911, -24.86326753136592],
+                  [-51.22880598199817, -24.868874430447725],
+                  [-51.22365614068958, -24.869185917384716],
+                  [-51.221252881412234, -24.86607101269384],
+                  [-51.221939526920046, -24.863579032430536]]]),
+            {
+              "reference": 21,
+              "system:index": "25"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-52.258394491017455, -25.229048614372964],
+                  [-52.26354433232605, -25.228738040413038],
+                  [-52.26423097783386, -25.236502151427015],
+                  [-52.258394491017455, -25.235881040792528]]]),
+            {
+              "reference": 21,
+              "system:index": "26"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-50.816461091633784, -26.104922321279407],
+                  [-50.811997895833, -26.101839277404835],
+                  [-50.816461091633784, -26.099681098330326]]]),
+            {
+              "reference": 21,
+              "system:index": "27"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-50.846673493977534, -26.13266605740822],
+                  [-50.84873343050097, -26.129275509685097],
+                  [-50.85148001253222, -26.130816679942733]]]),
+            {
+              "reference": 21,
+              "system:index": "28"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-50.82676077425097, -26.14591907215186],
+                  [-50.82435751497363, -26.14900095297345],
+                  [-50.82332754671191, -26.14530268622204]]]),
+            {
+              "reference": 21,
+              "system:index": "29"
+            }),
+        ee.Feature(
+            ee.Geometry.Polygon(
+                [[[-50.78727865755175, -26.15670529895676],
+                  [-50.787965303059565, -26.160095050021493],
+                  [-50.7845320755205, -26.15978689490408]]]),
+            {
+              "reference": 21,
+              "system:index": "30"
+            })]);
+/**
+ * These scripts classify each region according to the list of most important bands (feature importance),
+ * with stable samples, using Random Forest, with 100 trees.
+ * 
+ * In this step it is possible to change the balance of each class and collect additional samples.
+ * In addition to the regions, there are two scripts that classify agricultural areas in the northeast (NE) and southeast (SE) of Brazil.
+ * These data are used by the agriculture team (Remap) and then transformed into mosaic of uses (class 21) in the Atlantic Forest data.
+ * 
+ * This script has 2 Geometry imports, used as complementary samples:
+ * varzea, agro
+ * 
+ * Data from scripts 03-10 e 03-20 are used as input.
+ * The output data from each region, plus the agricultural areas will be used as an input in script 05-10.
+ * 
+ */
+
+// Region ID.
+var regiaoID = 'reg_13'; // antigo 26
+// Flag to indicate whether to perform a data collection run.
+var coleta = false; //true or false
+
+// Define the geometry for the Atlantic Forest region.
+var limite_MA = 
+    /* color: #d63000 */
+    /* shown: false */
+    ee.Geometry.Polygon(
+        [[[-48.593359954293625, -30.678347823900353],
+          [-47.275000579293625, -25.525376684152373],
+          [-40.595313079293625, -23.284530667538736],
+          [-33.915625579293625, -6.580343714417967],
+          [-35.453711516793625, -4.217995607905081],
+          [-44.198828704293625, -17.856203449528717],
+          [-50.483008391793625, -17.52126295946964],
+          [-55.712500579293625, -21.74193426005608],
+          [-55.492774016793625, -29.72888025446976]]]);
+
+// Define years to process.  The `if` statement allows for processing a single year if `coleta` is true.
+var anos = [1985,1986,1987,1988,1989,1990,1991,1992,1993,1994,
+            1995,1996,1997,1998,1999,2000,2001,2002,2003,2004,
+            2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,
+            2015,2016,2017,2018,2019,2020,2021,2022,2023,2024];
+if (coleta) {
+  var anos = [2020];
+}
+
+// Number of trees for the Random Forest classifier.  
+// The number of trees is reduced to 10 if `coleta` is true.
+var RFtrees = 100;
+if (coleta) {var RFtrees = 10}
+
+// Output version and parameters, output directory.
+var versao_out = '3';
+var col = 10;
+var nome_out = 'RF85a24_v';
+var versao_pt = 'v3';
+var dirout = 'projects/mapbiomas-workspace/COLECAO_10/classificacao-ma/regioes/';
+
+// Import palettes module.
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+var vis = {'min': 0,'max': 69,'palette': palettes.get('classification9')};
+
+// Load pre-computed cluster data, monthly mosaics modules, regions and biome.
+var mosaicos_MA_clusters = ee.Image('projects/mapbiomas-workspace/COLECAO_10/MA_clusters_1985_2024_asset_salvo');
+var mos = require('users/marcosrosaUSP/MapBiomas_col10_MA:Mata_Atlantica_LANDSAT/passo01/old_mosaicos_mensais_do_Google_v3');
+var regioesCollection = ee.FeatureCollection('projects/mapbiomas-workspace/AUXILIAR/Mata_Atlantica_Regioes2025');
+var visParMedian2 = {bands: ['swir1_median', 'nir_median', 'red_median'],gain: [0.08, 0.06, 0.2],gamma: 0.85};
+var bioma = "MATAATLANTICA";
+var limite = regioesCollection.filterMetadata('reg_id', "equals", regiaoID);
+
+// Add region to the map.
+//Map.addLayer(ee.Image(0).mask(0).paint(limite, 'AA0000', 2), {'palette':'000000','opacity': 0.6}, regiaoID, false);
+
+// Directory for training samples.
+var dirsamples = 'projects/mapbiomas-workspace/AMOSTRAS/col10/MATA_ATLANTICA/'; 
+
+// Load Collection 9 if `coleta` is true.
+if (coleta) {
+var colecao = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection9/mapbiomas_collection90_integration_v1');
+Map.addLayer(colecao.select('classification_'+anos), vis, 'LULC Col 9 (LandSat) '+ anos, false);
+}
+
+// Function to shuffle a feature collection using a seed.
+var shuffle = function (collection, seed) {
+    collection = collection.randomColumn('random', seed || 1)
+        .sort('random', true)
+        .map(function (feature) {
+                var rescaled = ee.Number(feature.get('random')).multiply(1000000000).round();
+                return feature.set('new_id', rescaled)});
+    var randomIdList = ee.List(collection.reduceColumns(ee.Reducer.toList(), ['new_id']).get('list'));
+    var sequentialIdList = ee.List.sequence(1, collection.size());
+    var shuffled = collection.remap(randomIdList, sequentialIdList, 'new_id');
+    return shuffled;
+};
+
+// Seed for shuffling.
+var seed = 1;
+
+// Loop through each year.
+for (var i_ano=0;i_ano<anos.length; i_ano++){
+  var ano = anos[i_ano];
+
+    // Get the mosaic for the current year and region.
+    var mosaicoTotal = mos.getMosaic(ano,limite_MA);
+    // Add a band representing the year.
+    var img_ano = ee.Image(ano);
+    mosaicoTotal = mosaicoTotal.addBands(img_ano.rename('ano'));
+  
+    // Add bands from the cluster data image.
+    // Add the cluster, NDFI amplitude, green texture, NDFI median, longitude, latitude, and year bands to the mosaic.
+    mosaicoTotal = mosaicoTotal
+        .addBands(mosaicos_MA_clusters.select(
+          ['clusters_'+ano, 'clusters_green_text_'+ano, 'amp_ndfi_3anos_'+ano, 
+          'clusters_ndfi_median_'+ano, 'longitude','latitude'],
+          ['clusters', 'clusters_green_text', 'amp_ndfi_3anos', 
+          'clusters_ndfi_median', 'longitude','latitude']));
+    //print('pre bandNames',mosaicoTotal);
+  
+  // Add mosaic to the map if `coleta` is true.
+  if (coleta) {    
+    Map.addLayer(mosaicoTotal, visParMedian2, 'Img_Year_'+ano, false);
+  }
+  
+  // Define bands to use for classification.
+  var bandNames = ee.List([
+  'blue_median','blue_median_dry','cai_median','cai_median_dry','cai_median_wet','evi2_amp','evi2_median_dry',
+  'evi2_median_wet','fns_stdDev','gcvi_amp','gcvi_median','gcvi_median_dry','gcvi_median_wet','gcvi_stdDev',
+  'green_amp','green_median','green_median_dry','green_median_wet','gv_median','gv_stdDev','gvs_amp','gvs_median',
+  'hallcover_median','hallcover_median_dry','hallcover_median_wet','hallheigth_median','hallheigth_median_dry',
+  'latitude','longitude','ndfi_amp','ndvi_amp','ndvi_median','ndvi_median_dry','ndvi_median_wet','ndwi_median',
+  'ndwi_median_dry','ndwi_median_wet','nir_amp','nir_median','nir_median_dry','nir_median_wet','red_median',
+  'red_median_dry','red_median_wet','savi_median','savi_median_dry','sefi_median','shade_median','slope',
+  'soil_stdDev','swir1_median','swir1_median_dry','swir1_median_wet','swir2_median_dry','swir2_median_wet',
+  'wefi_amp','wefi_median','wefi_median_dry','wefi_median_wet','wefi_stdDev'
+    ]);
+  
+  // Filter and mosaic the image collection.
+  var mosaicoTotal = ee.ImageCollection(mosaicoTotal)
+                        .filterMetadata('year', 'equals', ano)
+                        .filterBounds(limite)
+                        .mosaic()
+                        .select(bandNames);
+    //print('pos bandNames',mosaicoTotal);
+                       
+  // Load training data.
+  var BDamostras = ee.FeatureCollection(dirsamples + 'pontos_train_'+versao_pt+'_'+ano+'_seed_'+seed)
+                     .filterMetadata('reg_id', 'equals', regiaoID);
+
+  // Filter training data by class.
+  var BDflo      = BDamostras.filterMetadata("reference", "equals", 3);
+  var BDsav      = BDamostras.filterMetadata("reference", "equals", 4);//.limit(100)
+  var BDreflo    = BDamostras.filterMetadata("reference", "equals", 9);
+  var BDvarzea   = BDamostras.filterMetadata("reference", "equals", 11);
+  var BDcampo    = BDamostras.filterMetadata("reference", "equals", 12);
+  var BDRestHerb = BDamostras.filterMetadata("reference", "equals", 50);
+  var BDagro     = BDamostras.filterMetadata("reference", "equals", 21);
+  //BDagro = shuffle(BDagro, 2).limit(1000);
+  var BDNaoVeg   = BDamostras.filterMetadata("reference", "equals", 22);
+  var BDAflora   = BDamostras.filterMetadata("reference", "equals", 12);
+  var BDagua     = BDamostras.filterMetadata("reference", "equals", 33);
+
+  // Complementary samples.
+  // Merge complementary samples into a single feature collection.
+  var amostraTotal = varzea.merge(agro);//flo.merge(agr).merge(agua).merge(varzea)
+  
+  // Convert the merged feature collection into an image where each pixel's value represents the 'reference' property of the nearest feature.
+  // This creates a reference image for sampling.
+  var amostraTotalimg = amostraTotal.reduceToImage({properties: ['reference'],reducer: ee.Reducer.first()});
+  // Rename the band to 'reference'.
+  amostraTotalimg = amostraTotalimg.select([0],['reference']);
+
+  // Sample the mosaic image using points from the complementary samples.
+  // The number of pixels to sample is specified.
+  // The sampled data will include the band values from `mosaicoTotal` and the 'reference' band from `amostraTotalimg`.
+  //var training_flo = mosaicoTotal.select(bandNames).addBands(amostraTotalimg).sample({'numPixels': 300, 'region': flo.filterBounds(limite), 'scale': 30, 'seed': 1});
+  //var training_nflo = mosaicoTotal.select(bandNames).addBands(amostraTotalimg).sample({'numPixels': 300, 'region': nao_flo.filterBounds(limite), 'scale': 30, 'seed': 1});
+  //var training_sav = mosaicoTotal.select(bandNames).addBands(amostraTotalimg).sample({'numPixels': 1500, 'region': sav.filterBounds(limite), 'scale': 30, 'seed': 1});
+  //var training_afl = mosaicoTotal.select(bandNames).addBands(amostraTotalimg).sample({'numPixels': 1000, 'region': aflora.filterBounds(limite), 'scale': 30, 'seed': 1});
+  var training_var = mosaicoTotal.select(bandNames).addBands(amostraTotalimg).sample({'numPixels': 300, 'region': varzea.filterBounds(limite), 'scale': 30, 'seed': 1});
+  //var training_agu = mosaicoTotal.select(bandNames).addBands(amostraTotalimg).sample({'numPixels': 100, 'region': agua.filterBounds(limite), 'scale': 30, 'seed': 1});
+  //var training_cam = mosaicoTotal.select(bandNames).addBands(amostraTotalimg).sample({'numPixels': 800, 'region': campo.filterBounds(limite), 'scale': 30, 'seed': 1});
+  //var training_nflo = mosaicoTotal.select(bandNames).addBands(amostraTotalimg).sample({'numPixels': 200, 'region': n_flo.filterBounds(limite), 'scale': 30, 'seed': 1});
+  var training_agr = mosaicoTotal.select(bandNames).addBands(amostraTotalimg).sample({'numPixels': 800, 'region': agro.filterBounds(limite), 'scale': 30, 'seed': 1});
+
+// If true, print the sample size.
+if (coleta) {
+//print('BDflo',BDflo.size());
+//print('BDsav',BDsav.size());
+//print('BDvar',BDvarzea.size());
+//print('BDcam',BDcampo.size());
+//print('BDOut',BDOutroNFlo.size());
+//print('BDAfl',BDAflora.size());
+//print('BDagr',BDagro.size());
+//print('BDNao',BDNaoVeg.size());
+//print('BDagu',BDagua.size());
+//print('training_flo',training_flo.size());
+//print('training_cam',training_cam.size());
+//print('training_sav',training_sav.size());
+//print('training_afl',training_afl.size());
+//print('training_cam',training_cam.size());
+ print('training_agr',training_agr.size());
+}
+
+  // Merge training data.
+  var training = BDflo.merge(BDreflo).merge(BDcampo)
+                      //.merge(BDsav).merge(BDOutroNFlo)
+                      //.merge(BDAflora)
+                      .merge(BDagro).merge(BDNaoVeg)
+                      .merge(BDagua)
+                      //complementares
+                      //.merge(training_afl)
+                      .merge(training_var).merge(training_agr);
+                      //.merge(training_sav).merge(training_agr)
+                      //.merge(training_flo).merge(training_agu)
+
+  // Train the classifier.
+  var classifier = ee.Classifier.smileRandomForest({numberOfTrees: RFtrees, variablesPerSplit:1}).train(training, 'reference', bandNames);
+  // Classify the image.
+  var classified = mosaicoTotal.classify(classifier).mask(mosaicoTotal.select('green_median'));
+  classified = classified.select(['classification'],['classification_'+ano]).clip(limite.geometry()).toInt8();
+  // Get classification probabilities.
+  var classifier_prob = classifier.setOutputMode('MULTIPROBABILITY');
+  var classified_prob = mosaicoTotal.classify(classifier_prob);
+  var max_prob = classified_prob.arrayReduce(ee.Reducer.max(), [0]);
+  var img_max_prop = max_prob.arrayFlatten([['prob_'+ano]]).multiply(100);
+  
+// Add classified image to the map if `coleta` is true.
+if (coleta) {  Map.addLayer(classified, vis, 'RF'+ano+"_"+regiaoID, false);}
+
+// Loads the FeatureCollection of a generic half-degree Grid.
+if (coleta) {
+var gridbr = ee.FeatureCollection ('projects/ee-mapbiomas-arcplan-fp/assets/grid_meio_grau');
+var blank = ee.Image(0).mask(0);
+var outline_gridbr = blank.paint(gridbr, '000000', 1.5); 
+var visPar_gridbr = {'palette':'000000','opacity': 0.6};
+Map.addLayer(outline_gridbr, visPar_gridbr, 'Grid', true);
+}
+
+  // Create a mosaic of classified images for all years.
+  // Builds up multi-band images (classified85a24 and classified85a24_prob)
+  // where each band represents the classification or probability results for a specific year
+  if (i_ano == 0){ // first year
+    var classified85a24 = classified;
+    var classified85a24_prob = img_max_prop;
+  }
+  else { // other years
+    classified85a24 = classified85a24.addBands(classified);
+    classified85a24_prob = classified85a24_prob.addBands(img_max_prop);
+  }
+  
+}
+
+//print(classified85a21)
+//print(classified85a24_prob)
+
+// Set metadata for the classified image.
+classified85a24 = classified85a24
+.set('territory', 'BRAZIL')
+.set('biome', 'MATA ATLANTICA')
+.set('source', 'arcplan')
+.set('version', versao_out)
+.set('collection_id', col);
+
+// Export the classified image to an asset.
+Export.image.toAsset({
+  "image": classified85a24.toInt8(),
+  "description": regiaoID+'-'+nome_out+versao_out+'_seed_'+seed,
+  "assetId": dirout + regiaoID+'-'+nome_out+versao_out+'_seed_'+seed,
+  "scale": 30,
+  "pyramidingPolicy": {
+      '.default': 'mode'
+  },
+  "maxPixels": 1e13,
+  "region": limite
+});    
+
+// Add probability image to the map.
+Map.addLayer(classified85a24_prob, {"opacity":1,"bands":['prob_'+ano],
+                                    "min":17.397846221923828,"max":96.64131927490234,
+                                    "palette":["ff1203","fffd03","39ff03","018610","02521a"]}, 'Probabilidade', false);
+
+// Set metadata for the probability image.
+classified85a24_prob = classified85a24_prob
+.set('territory', 'BRAZIL')
+.set('biome', 'MATA ATLANTICA')
+.set('source', 'arcplan')
+.set('version', versao_out)
+.set('collection_id', col);
+
+// Export the probability image to an asset.
+Export.image.toAsset({
+  "image": classified85a24_prob.toInt8(),
+  "description": regiaoID+'-'+nome_out+versao_out+'_prob',
+  "assetId": dirout + regiaoID+'-'+nome_out+versao_out+'_prob',
+  "scale": 30,
+  "pyramidingPolicy": {
+      '.default': 'mode'
+  },
+  "maxPixels": 1e13,
+  "region": limite
+});
+
+// Loads biome.
+var bioma250mil = ee.FeatureCollection('projects/mapbiomas-workspace/AUXILIAR/biomas_IBGE_250mil');
+var bioma250mil_MA_vetor = bioma250mil.filter(ee.Filter.eq('Bioma', 'Mata Atlântica'));
+var blank = ee.Image(0).mask(0);
+var outline_bioma = blank.paint(bioma250mil_MA_vetor, 'AA0000', 2); 
+var visPar_bioma = {'palette':'purple','opacity': 1};
+Map.addLayer(outline_bioma, visPar_bioma, 'bioma vetor', false);
+
+// Add region to the map.
+Map.addLayer(ee.Image(0).mask(0).paint(limite, 'AA0000', 2), {'palette':'000000','opacity': 0.6}, regiaoID, false);

@@ -1,0 +1,216 @@
+/**
+ * This is a script that applies a temporal 3-year moving window filter
+ * to remove middle single-year classification changes.
+ * It stabilizes changes within classes with less than 1 year.
+ * If the years of the edges of the moving window are from the same class, the middle year is reclassified to match it.
+ * 
+ * The 'anos' list is created for the years 1986 to 2023.
+ * The first year (1985) and last year (2024) are excluded because the 3-year window (previous, current, next)
+ * cannot be applied at the edges of the time series.
+ * For each year in the 'anos' list, it selects the classification bands
+ * for the current year, the previous year, and the next year.
+ * Then creates to find pixels that match this temporal pattern:
+ * next year IS NOT the target class
+ * AND current year IS the target class
+ * AND previous year IS NOT the target class,
+ * which isolates pixels that have the target class for only a single year.
+ * It takes the classification of the previous year and uses it to update the pixels identified in the mask.
+ * 
+ * The function window3y is used not once, but it is chained iteratively.
+ * The script first cleans all single-year anomalies of class 22 (Non-vegetated Area),
+ * then takes that cleaned result and removes all single-year anomalies of class 50 (Herbaceous Sandbank Vegetation),
+ * and so on for the other classes (29, 3, 4, 21, 12, 11).
+ * This prevents different class corrections from interfering with each other in the same pass
+ * and ensures a thorough cleaning for a list of target classes:
+ * Non vegetated area (22), Herbaceous Sandbank Vegetation (50), Rocky Outcrop (29),
+ * Forest (3), Savanna (4), Mosaic of Uses (21), Grassland (12) and Wetland (11).
+ * 
+ * It uses as input data output data from script 10-30.
+ * The output data from this script is the final version of Atlantic Forest biome.
+ * 
+ */
+
+// Define the geometry for the Atlantic Forest region.
+var limite_MA = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-48.593359954293625, -30.678347823900353],
+          [-47.275000579293625, -25.525376684152373],
+          [-40.595313079293625, -23.284530667538736],
+          [-33.915625579293625, -6.580343714417967],
+          [-35.453711516793625, -4.217995607905081],
+          [-44.198828704293625, -17.856203449528717],
+          [-50.483008391793625, -17.52126295946964],
+          [-55.712500579293625, -21.74193426005608],
+          [-55.492774016793625, -29.72888025446976]]]);
+
+//Map.setCenter(-49.54511, -25.465731,17);
+
+// Define the input and output version numbers.
+var vesion_in = '82_Sf';
+var versao_out = '83_Sf';
+// Define the description of the process.
+var descricao = 'Janela Movel 3 anos';
+// Define the collection id.
+var col = 10.0;
+// Define input and output prefixes for asset naming.
+var prefixo_in  = 'MA_col'+col+'_p10c_v';
+var prefixo_out = 'MA_col'+col+'_p10d_v'; 
+// Define output directory for assets.
+var dirout = 'projects/mapbiomas-brazil/assets/LAND-COVER/COLLECTION-'+col+'/GENERAL/classification-mat-ft/';
+
+// Load the collection 10 image.
+var imgCol =  ee.Image(dirout+prefixo_in+vesion_in);
+
+// Import the palettes module.
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+// Define visualization parameters.
+var vis = {
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+var vis2 = {
+    'bands': 'classification_2020',
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+
+// Create a list of years to iterate over for the temporal filtering process.
+// The sequence starts from 1986 and goes up to 2023.
+// The first and last years (1985 and 2024 in this case, considering the full original time series)
+// are excluded from this list because the 3-year window logic (previous, current, next) cannot
+// be fully applied to the boundary years of the overall time series. These boundary years
+// will be added back separately after the filtering is applied to the middle years.
+var anos = ee.List.sequence(1986, 2023)                                                           
+                  .map(function(y){                                                     
+                        return ee.Number(y).int(); });
+                        
+// Function to apply a 3-year moving window filter for a specific class.
+// This function identifies instances where a target `classe` appears in the middle year
+// of a 3-year sequence, but is different from both the previous and next year's classes.
+// It then replaces this transient middle year class based on the previous year's class.
+var window3y = function (img, classe){
+                // Create an image collection by mapping over the list of years defined in `anos` (1986-2023).
+                var classWind = ee.ImageCollection(anos.map(function(ano){
+                    ano = ee.Number(ano); // Convert the current year to an Earth Engine Number object.
+                    var anoStr = ano.format(); // Format the current year as a string.
+                    var nomeBanda = ee.String('classification_').cat(anoStr); // Construct the band name for the current year's classification.
+
+                    // Select the classification bands for the current year, previous year, and next year from the input image.
+                    var class_Ano = img.select(nomeBanda); // This year (YYYY).
+                    var classPrev = img.select(ee.String('classification_').cat(ano.subtract(1).format())); // Previous year (YYYY-1).
+                    var classNext = img.select(ee.String('classification_').cat(ano.add(1).format())); // Next year (YYYY+1).
+                    
+                    // Create a mask for the 3-year window.
+                    // Create a mask to identify transient pixels of the target `classe`.
+                    // The mask is true (1) where the next year's classification is NOT the target class,
+                    // AND the current year's classification IS the target class,
+                    // AND the previous year's classification is NOT the target class.
+                    // This isolates single-year occurrences of the target class.
+                    var mask_3 = classNext.neq(classe)
+                            .and(class_Ano.eq(classe))
+                            .and(classPrev.neq(classe));
+       
+                    // Remap the classification for the previous year and apply the mask.
+                    // Water is not included due to possible changes during the 
+                    // remap the classification values for the previous year and apply the generated mask.
+                    // If the mask is true (identifying a transient pixel in the current year), the previous year's
+                    // classification is taken.
+                        mask_3 = classPrev.remap([3,4,11,12,21,22,29,50],
+                                                 [3,4,11,12,21,22,29,50]).updateMask(mask_3);
+                                             
+                    // Blend the original classification with the masked classification.
+                    // Blend the original classification of the current year (`class_Ano`) with the masked
+                    // remapped classification from the previous year (`mask_3`).
+                    var class_corr = class_Ano.blend(mask_3.rename(nomeBanda));
+                       
+                    return class_corr; // Return the corrected classification band for the current year.
+                                                
+                                                // Convert the ImageCollection of corrected yearly bands into a single multi-band image.
+                                                })).toBands();
+                                                //print('classWind',classWind)
+        
+        // Get the size of the years list used in the mapping (1986-2023).
+        var n = anos.size();
+        // Get the last year from the 'anos' list (2023) and add 1 to get the full last year (2024).
+        var ultimo = ee.Number(anos.get(n.subtract(1))).add(1); 
+        print(ultimo);
+                    
+        // Manually select the classification bands for the first year (1985) and the last full year (2024)
+        // from the original input image (`imgCol`). Rename these bands with a "00_" prefix.
+        // The "00_" prefix ensures that when bands from `classWind` and these are combined using `addBands`,
+        // they will appear first in the list and maintain their correct chronological order before the
+        // `corrIndx` function removes the prefixes and reorders alphabetically.
+        var class_pri   = img.select(ee.String('classification_1985')).rename('00_classification_1985');
+        var class_ult   = img.select(ee.String('classification_').cat(ultimo))
+                             .rename(ee.String('00_classification_').cat(ultimo));
+        // Combine the first year, the middle years (processed by the window), and the last year
+        // into a single multi-band image.
+        var class_final = class_pri.addBands(classWind).addBands(class_ult);
+        //print('class_final',class_final)
+                                                            
+        // Function to correct band names after an image collection has been converted to a multi-band image using `toBands()`.
+        var corrIndx  = function (img){
+              // Get the names of all bands currently in the image.
+              var indxNames = img.bandNames();
+              var bandNames = indxNames.map(function(nome){ // Map over each current band name.
+                  return ee.String(nome).split('_').slice(1).join('_'); // Split, slice, and join.
+                                                          });
+              // Return the image with bands selected using the original names but assigned the cleaned new names.
+              return img.select(indxNames,bandNames);
+                                      };
+        // Apply the band name correction function to the combined image.
+        var corrigidaFinal = corrIndx(class_final);
+        print('corrigidaFinal',corrigidaFinal);
+                return corrigidaFinal; // Return the final corrected multi-band image.
+                
+}; // End of the window3y function definition.
+
+// Apply the 3-year moving window filter iteratively for different land cover classes.
+// The filter is applied to the image (`imgCol` initially, then the result of the previous filtering)
+// for a specific class value.
+var filtered = window3y(imgCol,   22);
+    filtered = window3y(filtered, 50);
+    filtered = window3y(filtered, 29);
+    filtered = window3y(filtered,  3);
+    filtered = window3y(filtered,  4);
+    filtered = window3y(filtered, 21);
+    filtered = window3y(filtered, 12);
+    filtered = window3y(filtered, 11);
+
+// Calculate the difference between the original classification and the filtered classification for the year 2020.
+// This highlights pixels where the classification for 2020 has changed as a result of the filtering.
+var efeito = imgCol.select('classification_2020').neq(filtered.select('classification_2020'));
+Map.addLayer(efeito, {}, 'efeito');
+
+// Add the original and filtered images to the map.
+Map.addLayer(imgCol, vis2, 'imgCol', false);
+Map.addLayer(filtered, vis2, 'class_final', false);
+
+// Add the classifications for 2020 to the map.
+Map.addLayer(imgCol.select('classification_2020'), vis, 'imgCol 2020', true);
+Map.addLayer(filtered.select('classification_2020'), vis, 'class_final 2020', true);
+
+// Set the metadata for the final classification image.
+filtered = filtered
+.set('territory', 'BRAZIL')
+.set('biome', 'MATAATLANTICA')
+.set('source', 'arcplan')
+.set('version', versao_out)
+.set('year', versao_out)
+.set('collection_id', col)
+.set('description', descricao);
+
+// Export the final classification image to an asset.
+Export.image.toAsset({
+    "image": filtered.toInt8(),
+    'description': prefixo_out+versao_out,
+    'assetId': dirout+prefixo_out+versao_out,
+    "scale": 30,
+    "pyramidingPolicy": {
+        '.default': 'mode'
+    },
+    "maxPixels": 1e13,
+    "region": limite_MA
+});

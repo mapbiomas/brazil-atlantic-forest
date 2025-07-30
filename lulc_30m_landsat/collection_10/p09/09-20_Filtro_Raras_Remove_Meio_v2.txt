@@ -1,0 +1,207 @@
+/**
+ * This script corrects classifications of some natural land cover classes (4, 11, 12, 29, 50)
+ * that appear only in the middle of the time series.
+ * It operates on the assumption that if a pixel was not a specific natural class at the beginning (1985)
+ * and end (2024) of the series, it's unlikely to have been that class for a few years in the middle.
+ * Conversely, if it was stably a natural class at both ends,
+ * any brief change to an anthropic class in the middle years, is an unlikely change.
+ * 
+ * It creates two opposing masks to determine where corrections should be applied.
+ * neqMask (The "Instability" Mask):
+ * It creates a mask that is 1 (true) for pixels where none of the target classes were present in 1985
+ * AND none were present in 2024.
+ * This mask identifies pixels where the appearance of a target class during the middle years would be considered an anomalous gain.
+ * eqMask (The "Stability" Mask):
+ * It creates a mask that is 1 (true) for pixels where one of the target classes was present in 1985
+ * AND one was present in 2024. This mask identifies pixels that should be stably a target class throughout the series.
+ * A change away from this class in the middle years is considered an anomalous loss.
+ * 
+ * The script then iterates through every year from 1985 to 2024 and applies a two-step correction:
+ * Step 1: The "Gain" Correction:
+ * The correction is applied only within the neqMask and looks for false gains.
+ * For every middle year, it checks if a pixel is classified as one of the target classes.
+ * If a pixel meets this condition, its classification is changed to Mosaic of Uses (21).
+ * Step 2: The "Loss" Correction:
+ * The correction is applied only within the eqMask and looks for false losses.
+ * It checks if a pixel is classified as Mosaic of Uses (21) in a middle year.
+ * If a pixel meets this condition, its classification is reverted from Mosaic of Uses (21) back to its natural class.
+ * 
+ * It uses as input data output data from script 09-10.
+ * The output data from this script is used as an input in script 09-30.
+ * 
+ */
+
+
+// Define the geometry for the Atlantic Forest region.
+var limite_MA = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-48.593359954293625, -30.678347823900353],
+          [-47.275000579293625, -25.525376684152373],
+          [-40.595313079293625, -23.284530667538736],
+          [-33.915625579293625, -6.580343714417967],
+          [-35.453711516793625, -4.217995607905081],
+          [-44.198828704293625, -17.856203449528717],
+          [-50.483008391793625, -17.52126295946964],
+          [-55.712500579293625, -21.74193426005608],
+          [-55.492774016793625, -29.72888025446976]]]);
+
+//Map.setCenter(-49.38849, -25.39505,14);
+
+// Define the input and output version numbers.
+var vesion_in = '46';
+var versao_out = '47'; 
+// Define the description of the process.
+var descricao = 'Remove raras do meio da serie';
+// Define the collection id.
+var col = 10.0;
+// Define input and output prefixes for asset naming.
+var prefixo_in  = 'MA_col'+col+'_p09a_v';
+var prefixo_out = 'MA_col'+col+'_p09b_v';
+// Define output directory for assets.
+var dirout = 'projects/mapbiomas-brazil/assets/LAND-COVER/COLLECTION-'+col+'/GENERAL/classification-mat-ft/';
+
+// Define the biome.
+var bioma = "MATAATLANTICA";
+
+// Load the collection 10 image.
+var imgCol =  ee.Image(dirout+prefixo_in+vesion_in);
+//Map.addLayer(imgCol, {}, 'imgCol', false);
+
+// Import the palettes module.
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+// Define visualization parameters.
+var vis = {
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+var vis2 = {
+    'bands': 'classification_2024',
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+
+// Create a list of years to process.
+var anos = ee.List.sequence(1985, 2024)                // Create a sequence of years from 1985 (A) to 2024 (B).
+                  .map(function(y){                                                     
+                        return ee.Number(y).int(); }); // Convert each year to an integer.
+                        
+// Function to rename bands in an image, removing a prefix.
+var corrIndx  = function (img){
+                  // Get the names of all bands in the image.
+                  var indxNames = img.bandNames();                              //bandNames creates an ee.List from bands of an ee.Image
+                  // Create a new list of band names by removing the prefix from each original band name.
+                  var bandNames = indxNames.map(function(nome){                 // Map over the band names.
+                          return ee.String(nome).split('_').slice(1).join('_'); // Split the band name, remove the prefix, and rejoin.
+                                      });
+                                      
+                  // Return the image with renamed bands.
+                  return img.select(indxNames,bandNames); // Select the bands and rename them.
+                              };
+
+// Get the size of the years list.
+var n = anos.size();                             // Get the number of years in the list.
+var ultimo = ee.Number(anos.get(n.subtract(1))); // Get the last year in the list.
+var penult = ee.Number(anos.get(n.subtract(2))); // Get the second to last year in the list.
+var antpen = ee.Number(anos.get(n.subtract(3))); // Get the third to last year in the list.
+
+// Select the classifications for specific years.
+var col_1985 = imgCol.select('classification_1985');                    // Select the classification band for 1985.
+var col_1986 = imgCol.select('classification_1986');                    // Select the classification band for 1986.
+var col_ant =  imgCol.select(ee.String('classification_').cat(antpen)); // Select the classification band for the third to last year.
+var col_pen =  imgCol.select(ee.String('classification_').cat(penult)); // Select the classification band for the second to last year.
+var col_ult =  imgCol.select(ee.String('classification_').cat(ultimo)); // Select the classification band for the last year.
+
+// Define the list of classes that will be targeted for correction.
+var classes = ([4,11,12,29,50]); // Define the classes to correct.
+
+// Create masks indicating where a pixel is NOT one of the classes in EITHER 1985 OR the last year.
+var neqMask = classes.map(function (classe) {    // Map over the classes.
+      var classStr = ee.Number(classe).format(); // Convert the class to a string.
+      // Create a mask: True (1) if class is NOT present in 1985 AND True (1) if class is NOT present in the last year.
+      // The sum will be 2 if both are true. Remap 2 to 1 to get a binary mask (1=not in both, 0=in one or both).
+      // Create the mask where the class is absent in both start and end years.
+      var mask_neq = col_1985.neq(classes).add((col_ult).neq(classes)).remap([2],[1]);
+
+      return mask_neq.rename(ee.String('neqMask_').cat(classStr)); // Rename the mask band with the class number.
+}); 
+// Convert the list of masks into a multi-band image.
+neqMask = ee.Image(neqMask);
+print(neqMask,'neqMask');
+
+// Create masks indicating where a pixel IS one of the classes in EITHER 1985 OR the last year.
+var eqMask = classes.map(function (classe) {     // Map over the classes.
+      var classStr = ee.Number(classe).format(); // Convert the class to a string.
+      // Create a mask: True (1) if class IS present in 1985 AND True (1) if class IS present in the last year.
+      // The sum will be 2 if both are true. Remap 2 to 1 to get a binary mask (1=in both, 0=not in one or both).
+      // Create the mask where the class is present in both start and end years.
+      var mask_eq = col_1985.eq(classes).add((col_ult).eq(classes)).remap([2],[1]);
+
+      return mask_eq.rename(ee.String('eqMask_').cat(classStr)); // Rename the mask band with the class number.
+}); 
+// Convert the list of masks into a multi-band image.
+eqMask = ee.Image(eqMask);
+print(eqMask,'eqMask');
+
+// Generate the level 0 class image for all years.
+// Generate the corrected classification image for all years.
+var class_final = ee.ImageCollection(anos
+               .map(function(ano){
+                 ano = ee.Number(ano); // Convert year to number.
+                 var anoStr = ano.format(); // Format year as string.
+                 var class_ano = imgCol.select(ee.String('classification_').cat(anoStr)); // Select the classification band for the current year.
+                
+                // Apply "gain" correction: If a pixel is classified as a class in the current year
+                // BUT that class is NOT present in both the start AND end years (using neqMask),
+                // then change the classification to 21.
+                var gain_corr = class_ano.blend(class_ano.mask(neqMask.select('neqMask_4') .remap([4] ,[21])))  // Blend with correction for class 4 if not in start/end.
+                                         .blend(class_ano.mask(neqMask.select('neqMask_11').remap([11],[21])))  // Blend with correction for class 11 if not in start/end.
+                                         .blend(class_ano.mask(neqMask.select('neqMask_12').remap([12],[21])))  // Blend with correction for class 12 if not in start/end.
+                                         .blend(class_ano.mask(neqMask.select('neqMask_29').remap([29],[21])))  // Blend with correction for class 29 if not in start/end.
+                                         .blend(class_ano.mask(neqMask.select('neqMask_50').remap([50],[21]))); // Blend with correction for class 50 if not in start/end.
+                                         
+                // Apply "loss" correction: If a pixel is classified as (21) in the current year
+                // BUT that class IS present in both the start AND end years (using eqMask),
+                // then change the classification back to the original rare class.
+                var loss_corr = class_ano.blend(class_ano.mask(eqMask.select('eqMask_4') .remap([21], [4])))  // Blend with correction for class 4 if present in start/end.
+                                         .blend(class_ano.mask(eqMask.select('eqMask_11').remap([21],[11])))  // Blend with correction for class 11 if present in start/end.
+                                         .blend(class_ano.mask(eqMask.select('eqMask_12').remap([21],[12])))  // Blend with correction for class 12 if present in start/end.
+                                         .blend(class_ano.mask(eqMask.select('eqMask_29').remap([21],[29])))  // Blend with correction for class 29 if present in start/end.
+                                         .blend(class_ano.mask(eqMask.select('eqMask_50').remap([21],[50]))); // Blend with correction for class 50 if present in start/end.
+
+          // Blend the original classification with both gain and loss corrections.
+          return  class_ano.blend(gain_corr).blend(loss_corr); // Return the corrected image for the current year.
+          })).toBands();                                       // Convert the ImageCollection back into a multi-band Image.
+               
+          print(class_final);
+
+class_final = corrIndx(class_final); // Rename the bands in the final image.
+
+// Add the original and corrected classifications to the map.
+Map.addLayer(imgCol, vis2, 'class_original', true);
+Map.addLayer(class_final, vis2, 'class_corrigido', true);
+print(class_final);
+
+// Set the metadata for the final classification image.
+class_final = class_final
+.set('territory', 'BRAZIL')
+.set('biome', 'MATAATLANTICA')
+.set('source', 'arcplan')
+.set('version', versao_out)
+.set('year', versao_out)
+.set('collection_id', col)
+.set('description', descricao);
+
+// Export the final classification image to an asset.
+Export.image.toAsset({
+    "image": class_final.toInt8(),
+    'description': prefixo_out+versao_out,
+    'assetId': dirout+prefixo_out+versao_out,
+    "scale": 30,
+    "pyramidingPolicy": {
+        '.default': 'mode'
+    },
+    "maxPixels": 1e13,
+    "region": limite_MA
+});
