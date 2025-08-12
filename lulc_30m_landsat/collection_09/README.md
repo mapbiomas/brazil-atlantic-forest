@@ -55,7 +55,7 @@ Step09d: apply HAND filter on wetlands
 
 Step09e: filter minimum areas of transitions
 
-Step09f: reduce forert in last year
+Step09f: reduce forest in last year
 
 Step09b: filter rare classes on the middle years
 
