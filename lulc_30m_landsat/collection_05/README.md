@@ -23,10 +23,15 @@ Step04a: export classification for each region
 
 # Post-processing
 Step05: merge classification of each region and apply Gap fill filter to remove NODATA
+
 Step06a: create asset with 10 an 12 changes in classification
+
 Step06b: apply incident filter to remove pixels with 10 an 12 changes from forest class
+
 Step07: apply temporal filter
+
 Step08: apply spatial filter
+
 Step09: apply frequency filter
 
 
