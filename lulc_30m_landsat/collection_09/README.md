@@ -30,7 +30,7 @@ Step04: classify and export classification and probability for each region
 
 Step05a: merge classification of each region and apply Gap fill filter to remove NODATA 
 
-Step0b: merge probability of each region and apply Gap fill filter to remove NODATA 
+Step05b: merge probability of each region and apply Gap fill filter to remove NODATA 
 
 Step06: spatial filter
 
