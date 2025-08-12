@@ -14,8 +14,11 @@ First, you need to copy these scripts (including those in utils folder) to your 
 
 # Pre-processing
 Step01: build stable pixels from Colleciton 4.1 and save a new asset. 
+
 Step02: calculate area proportion for each class to each region that will be used to generate training samples
+
 Step03: export balanced training samples for each region
+
 Step04: export training samples for each year
 
 # Classification
