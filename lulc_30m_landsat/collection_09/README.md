@@ -20,6 +20,7 @@ Step01: build stable pixels from Colleciton 7 and save a new asset
 Step02: export Landsat with calculated bands and indexes
 
 Step03a:  export balanced training samples for each region
+
 Step03b:  export trained samples for each year
 
 # Classification
@@ -48,7 +49,7 @@ Step09a: temporal filter on first and last year
 
 Step09b: filter rare classes on the middle years
 
-Step09c: reduce recovery os rare classes
+Step09c: reduce recovery of rare classes
 
 Step09d: apply HAND filter on wetlands
 
