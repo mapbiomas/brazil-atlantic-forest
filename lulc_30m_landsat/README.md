@@ -15,55 +15,64 @@ First, you need to copy these scripts (including those in p04 folder) to your Go
 
 # Pre-processing
 
-Step01: build stable pixels from Colleciton 7 and save a new asset
+Step 01-10: build stable pixels from Colleciton 9 and save a new asset
 
-Step02: export Landsat with calculated bands and indexes
+Step 01-20: apply corrections on the stable samples
 
-Step03a:  export balanced training samples for each region
-Step03b:  export trained samples for each year
+Step 02-10: export segmented mosaic based on SNIC
+
+Step 02-20: export balanced training samples for each region
+
+Step 03-10: export trained samples for each year
+
+Step 03-15: correct a lack of stable samples in years 2008 and 2009 in the Brazilian northeast (NE)
+
+Step 03-20: define the feature importance for each region
 
 # Classification
 
-Step04: classify and export classification and probability for each region
+Step 04: classify and export classification and probability for each region and apply corrections in some regions
 
 # Post-processing
 
-Step05a: merge classification of each region and apply Gap fill filter to remove NODATA 
-Step0b: merge probability of each region and apply Gap fill filter to remove NODATA 
+Step 05-10: merge classification of each region and apply Gap fill filter to remove NODATA 
 
-Step06: spatial filter
+Step 05-20: merge probability of each region and apply Gap fill filter to remove NODATA
 
-Step07a: temporal filter-3year
+Step 05-30: remaps agriculture classes to mosaic of uses
 
-Step07b: filter regeneration on rare classes
+Step 06-10: spatial filter
 
-Step07c: stabilizes natural classes
+Step 06-20: temporal filter on first and last year
 
-Step08a: temporal filter-4year
+Step 06-30: classify Rocky Outcrop
 
-Step08b: temporal filter-5year
+Step 07-10: temporal filter-3year
 
-Step09a: temporal filter on first and last year
+Step 07-20: filter regeneration on rare classes
 
-Step09b: filter rare classes on the middle years
+Step 07-30: stabilizes natural classes
 
-Step09c: reduce recovery os rare classes
+Step 08-10: temporal filter-4year
 
-Step09d: apply HAND filter on wetlands
+Step 08-20: temporal filter-5year
 
-Step09e: filter minimum areas of transitions
+Step 09-10: temporal filter of rare classes on first and last year
 
-Step09f: reduce forert in last year
+Step 09-20: filter rare classes on the middle years
 
-Step09b: filter rare classes on the middle years
+Step 09-30: reduce recovery of rare classes
 
-Step10a: remove forest regeneration on last years on agriculture
+Step 09-40: apply HAND filter on wetlands
 
-Step10b: classify Sandbank Vegetation
+Step 09-50: filter minimum areas of transitions
 
-Step10c: spatial filter
+Step 09-60: reduce forest in last year
 
-Step10d: temporal filter-3year
+Step 10-10: remove forest regeneration on last years on agriculture
 
-Step10e: add more savana in the border with Caatinga
+Step 10-20: classify Wooded Sandbank Vegetation and corrects Rocky Outcrop
 
+Step 10-30: spatial filter
+
+Step 10-40: temporal filter-3year
