@@ -14,8 +14,11 @@ First, you need to copy these scripts (including those in utils folder) to your 
 
 # Pre-processing
 Step01: build stable pixels from Colleciton 4.1 and save a new asset. 
+
 Step02: calculate area proportion for each class to each region that will be used to generate training samples
+
 Step03: export balanced training samples for each region
+
 Step04: export training samples for each year
 
 # Classification
@@ -23,11 +26,19 @@ Step04a: export classification for each region
 
 # Post-processing
 Step05: merge classification of each region and apply Gap fill filter to remove NODATA
+
 Step06a: create asset with 10 an 12 changes in classification
+
 Step06b: apply incident filter to remove pixels with 10 an 12 changes from forest class
+
 Step07: apply temporal filter
+
 Step08: apply spatial filter
+
 Step09: apply frequency filter
 
+Step10: apply second spatial filter
+
+Step11: add Herbaceous Sandbank Vegetation class
 
 

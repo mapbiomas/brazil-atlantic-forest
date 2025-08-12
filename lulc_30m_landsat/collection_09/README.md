@@ -20,6 +20,7 @@ Step01: build stable pixels from Colleciton 7 and save a new asset
 Step02: export Landsat with calculated bands and indexes
 
 Step03a:  export balanced training samples for each region
+
 Step03b:  export trained samples for each year
 
 # Classification
@@ -29,7 +30,8 @@ Step04: classify and export classification and probability for each region
 # Post-processing
 
 Step05a: merge classification of each region and apply Gap fill filter to remove NODATA 
-Step0b: merge probability of each region and apply Gap fill filter to remove NODATA 
+
+Step05b: merge probability of each region and apply Gap fill filter to remove NODATA 
 
 Step06: spatial filter
 
@@ -47,13 +49,13 @@ Step09a: temporal filter on first and last year
 
 Step09b: filter rare classes on the middle years
 
-Step09c: reduce recovery os rare classes
+Step09c: reduce recovery of rare classes
 
 Step09d: apply HAND filter on wetlands
 
 Step09e: filter minimum areas of transitions
 
-Step09f: reduce forert in last year
+Step09f: reduce forest in last year
 
 Step09b: filter rare classes on the middle years
 
