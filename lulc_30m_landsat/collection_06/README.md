@@ -37,5 +37,8 @@ Step08: apply spatial filter
 
 Step09: apply frequency filter
 
+Step10: apply second spatial filter
+
+Step11: add Herbaceous Sandbank Vegetation class
 
 
