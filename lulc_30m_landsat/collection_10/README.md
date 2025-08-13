@@ -8,7 +8,7 @@
 This folder contains the scripts to classify and post-process the Atlantic Forest Biome.
 
 We recommend that you read the Atlantic Forest Biome Appendix of the Algorithm Theoretical Basis Document (ATBD).
-[Link to ATBD](https://mapbiomas-br-site.s3.amazonaws.com/Metodologia/MataAtlantica_Appendix_-_ATBD_Col7_v1-1.pdf)
+[Link to ATBD](https://brasil.mapbiomas.org/wp-content/uploads/sites/4/2025/08/MataAtlantica-Appendix-ATBD-Collection-10-v1.docx.pdf)
 
 # How to use
 First, you need to copy these scripts (including those in p04 folder) to your Google Earth Engine (GEE) account.
