@@ -8,7 +8,7 @@
 This folder contains the scripts to classify and post-process the Atlantic Forest Biome.
 
 We recommend that you read the Atlantic Forest Biome Appendix of the Algorithm Theoretical Basis Document (ATBD).
-[Link to ATBD](https://mapbiomas-br-site.s3.amazonaws.com/Metodologia/MataAtlantica_Appendix_-_ATBD_Col7_v1-1.pdf)
+[Link to ATBD](https://brasil.mapbiomas.org/wp-content/uploads/sites/4/2025/08/MataAtlantica-Appendix-ATBD-Collection-10-v1.docx.pdf)
 
 # How to use
 First, you need to copy these scripts (including those in p04 folder) to your Google Earth Engine (GEE) account.
@@ -37,45 +37,34 @@ Step04: classify and export classification and probability for each region
 
 # Post-processing
 
-Step05: merge classification of each region (and Wetland separetely) and apply Gap fill filter to remove NODATA
+Step05: merge classification of each region (and agriculture and Wetland separetely) and apply Gap fill filter to remove NODATA
 
 Step06a: spatial filter
 
 Step06b: spatial filter for Fernando de Noronha's area
 
+Step06c: spatial filter for agriculture
+
 Step06c: spatial filter for Wetland
 
-Step07a: temporal filter-3year
+Step07a: corrects Wetland areas
 
-Step07b: filter regeneration on rare classes
+Step07b: corrects Fernando de Noronha's area
 
-Step07c: stabilizes natural classes
+Step07c: merge all the themes together
 
-Step08a: temporal filter-4year
+Step08a: temporal filter on first and last year
 
-Step08b: temporal filter-5year
+Step08b: stabilizes natural classes
 
-Step09a: temporal filter on first and last year
+Step08c: filter minimum areas of transitions
 
-Step09b: filter rare classes on the middle years
+Step08d: stabilizes changing areas withouth forest
 
-Step09c: reduce recovery os rare classes
+Step09a: classify Sandbank Vegetation
 
-Step09d: apply HAND filter on wetlands
+Step10a: stabilizes gain and loss in middle years
 
-Step09e: filter minimum areas of transitions
-
-Step09f: reduce forert in last year
-
-Step09b: filter rare classes on the middle years
-
-Step10a: remove forest regeneration on last years on agriculture
-
-Step10b: classify Sandbank Vegetation
+Step10b: stabilizes changing areas
 
 Step10c: spatial filter
-
-Step10d: temporal filter-3year
-
-Step10e: add more savana in the border with Caatinga
-
