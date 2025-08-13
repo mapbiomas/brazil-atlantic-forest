@@ -15,12 +15,21 @@ First, you need to copy these scripts (including those in p04 folder) to your Go
 
 # Pre-processing
 
-Step01: build stable pixels from Colleciton 7 and save a new asset
+Step01a: build stable pixels from Colleciton S2 beta and save a new asset
 
-Step02: export Landsat with calculated bands and indexes
+Step 01b: apply corrections on the stable samples 
 
-Step03a:  export balanced training samples for each region
-Step03b:  export trained samples for each year
+Step 01c: create stable samples for Wetland
+
+Step02a: export balanced training samples for each region
+
+Step02b: export segmented mosaic based on SNIC
+
+Step02c: blend stable Wetland samples with all the stable samples
+
+Step03a:  export balanced trained samples for each region
+
+Step03b:  export Wetland trained samples for each region
 
 # Classification
 
@@ -28,10 +37,13 @@ Step04: classify and export classification and probability for each region
 
 # Post-processing
 
-Step05a: merge classification of each region and apply Gap fill filter to remove NODATA 
-Step0b: merge probability of each region and apply Gap fill filter to remove NODATA 
+Step05: merge classification of each region (and Wetland separetely) and apply Gap fill filter to remove NODATA
 
-Step06: spatial filter
+Step06a: spatial filter
+
+Step06b: spatial filter for Fernando de Noronha's area
+
+Step06c: spatial filter for Wetland
 
 Step07a: temporal filter-3year
 
