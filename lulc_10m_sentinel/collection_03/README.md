@@ -11,7 +11,7 @@ We recommend that you read the Atlantic Forest Biome Appendix of the Algorithm T
 [Link to ATBD](https://brasil.mapbiomas.org/wp-content/uploads/sites/4/2026/05/ATBD_Col3_10m_Atlantica_Forest_v1.pdf)
 
 # How to use
-First, you need to copy these scripts (including those in p04 folder) to your Google Earth Engine (GEE) account.
+First, you need to copy these scripts (including those in p04 folder) to your Google Earth Engine (GEE) account. If any input is missing is because we used the ready-to-use from the previous collection.
 
 # Pre-processing
 
