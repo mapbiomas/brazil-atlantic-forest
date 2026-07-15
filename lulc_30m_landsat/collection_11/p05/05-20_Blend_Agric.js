@@ -1,0 +1,212 @@
+ /**
+ * PROJECT: MapBiomas - Atlantic Forest (Collection 11)
+ * OBJECTIVE: Blending agriculture regions to all regions from Atlantic Forest.
+ * 
+ * DESCRIPTION:
+ * This script creates an ImageCollection from the agriculture classification images and mosaics them.
+ * It remaps Temporary Crop class value 19 to 100 in the agriculture classification image.
+ * Then add the remapped agriculture classification to the original classification image.
+ * This will result in values above 100 where there was 19 in remapped agriculture classification.
+ * Then blends the original classification with the modified agriculture classification and
+ * a remap operation changes values of 121 to 19.
+ * We obtain the intersection between 21 from the original classification and 19 from the modified agriculture classification.
+ * 
+ * This script uses input data from scripts 04-reg_agric_NE and 04-reg_agric_SE.
+ * The output of this script will be used in script 05-30.
+ * 
+ */
+
+// Define the geometry for the region of interest.
+var geometry1 = 
+    /* color: #d63000 */
+    /* shown: false */
+    ee.Geometry.Polygon(
+        [[[-56.05851880152852, -30.04613371617718],
+          [-49.20305005152852, -30.841736663987348],
+          [-41.46867505152852, -23.861579784474333],
+          [-34.17375317652852, -8.163484389272043],
+          [-34.26164380152852, -4.801825741437062],
+          [-35.66789380152852, -4.582835761516412],
+          [-49.07121411402852, -16.947367124654484],
+          [-56.10246411402852, -21.01873071079243]]]);
+
+// Define biome.
+var bioma = "MATAATLANTICA";
+
+// Define version numbers and other parameters.
+var version_in   = '1';
+var versao_out  = '2';
+var descricao   = 'Agriculture Blend';
+var col         = 11.0;
+var prefixo_in  = 'MA_col'+col+'_p05a_v';
+var prefixo_out = 'MA_col'+col+'_p05b_v';
+var dirin = 'projects/mapbiomas-brazil/assets/LAND-COVER/COLLECTION-'+col+'/GENERAL/classification-mat/';
+var dirout = 'projects/mapbiomas-brazil/assets/LAND-COVER/COLLECTION-'+col+'/GENERAL/classification-mat-ft/';
+//print(dirout);
+
+// Define the year and biome.
+var ano = 2025;
+var bioma = "MATAATLANTICA";
+
+// Import palettes module.
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+var vis = {'min': 0,'max': 69,'palette': palettes.get('classification9')};
+
+// Load images representing agriculture classifications for Northeast (NE) and Sotheast (SE) regions.
+var img_agric_SE = ee.Image(dirin+'agric_SE-RF85a25_v1');
+var img_agric_NE = ee.Image(dirin+'agric_NE-RF85a25_v1');
+print(img_agric_SE);
+
+// Add layers to the map for visualization.
+Map.addLayer(img_agric_SE.select('classification_'+ano), vis, 'img_agric_SE '+ano);
+Map.addLayer(img_agric_NE.select('classification_'+ano), vis, 'img_agric_NE '+ano);
+
+// Define a classification image.
+var class4GAP = ee.Image(dirout+prefixo_in+version_in);
+print(class4GAP);
+Map.addLayer(class4GAP.select('classification_'+ano), vis, 'class4GAP '+ano);
+
+////*************************************************************
+// Do not Change from these lines
+////*************************************************************
+
+//var biomes = ee.Image('projects/mapbiomas-workspace/AUXILIAR/biomas-raster-41');
+//var bioma250mil_MA = biomes.mask(biomes.eq(2));
+//Map.addLayer(bioma250mil_MA,{'palette': 'ccffcc'}, 'bioma250mil_MA', false);
+
+// Define years to process.
+var anos = ['1985','1986','1987','1988','1989','1990','1991','1992','1993','1994',
+            '1995','1996','1997','1998','1999','2000','2001','2002','2003','2004',
+            '2005','2006','2007','2008','2009','2010','2011','2012','2013','2014',
+            '2015','2016','2017','2018','2019','2020','2021','2022','2023','2024','2025'];
+//var anos = [2022];
+
+// Loop through each year.
+for (var i_ano=0;i_ano<anos.length; i_ano++){  
+  var ano = anos[i_ano]; 
+  
+  // Add original classification layer to the map.
+  // Map.addLayer(class4GAP.select('classification_'+ano), vis, 'class_orig_'+ano, false);
+  
+  // Create an ImageCollection from the agriculture classification images for the current year and mosaic them.
+  var class_out_agric_merge = ee.ImageCollection.fromImages( // merge
+                [img_agric_SE.select('classification_'+ano),
+                 img_agric_NE.select('classification_'+ano)])
+                .mosaic();
+
+  // Remap Temporary Crop class value 19 to 100 in the agriculture classification image.
+  var class_out_agric = class_out_agric_merge.select('classification_'+ano).remap([18],[100]);//.rename('classification_'+ano)
+  print(class_out_agric);
+  // Add the remapped agriculture classification to the original classification image.
+  // This will result in values above 100 where there was 19 in remapped agriculture classification.
+  // (Class value) + (100).
+  var class_out_agric_ano = class4GAP.select('classification_'+ano).add(class_out_agric);
+
+  // Blend the original classification with the modified agriculture classification.
+  // The remap operation changes values of 121 to 19. Remaps value 121 (Mosaic of uses) to 19.
+  // In this step we got the intersection between 21 from the original classification and 19 from the modified agriculture classification.
+  var class_ano = class4GAP.select('classification_'+ano)
+    .blend(class_out_agric_ano.remap([121],[ 18]).rename('classification_'+ano));
+    //.blend(class_out_agric_ano.remap([103, 104],[ 19, 19]).rename('classification_'+ano));
+  //Map.addLayer(class_ano, vis, 'class_agri_'+ano, false);
+  
+  // Concatenate the processed images for each year.
+  // The first iteration assigns the result to 'image'.
+  // Subsequent iterations add the 'class_ano' band to the 'image' using addBands.
+  if (i_ano == 0){ // first year
+    var image = class_ano;
+  } else { // other years
+    image = image.addBands(class_ano); 
+  }
+}
+//print(class_outTotal)
+
+// Add the final classification image to the map.
+Map.addLayer(image.select('classification_'+ano), vis, 'class_final '+ano);
+
+// Add the final classification image to the map.
+var years = [
+    1985,1986,1987,1988,1989,1990,1991,1992,1993,1994,
+    1995,1996,1997,1998,1999,2000,2001,2002,2003,2004,
+    2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,
+    2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025
+    ];
+
+// Generate a list of band names based on the years.
+var bandNames = ee.List(
+    years.map(
+        function (year) {
+            return 'classification_' + String(year);
+        }
+    )
+);
+
+// Create a histogram of band occurrences.
+// Generate a histogram dictionary of [bandNames, image.bandNames()].
+var bandsOccurrence = ee.Dictionary(
+    bandNames.cat(image.bandNames())
+             .reduce(ee.Reducer.frequencyHistogram())
+);
+//print(bandsOccurrence);
+
+// Add masked bands to the image.
+var bandsDictionary = bandsOccurrence.map(
+    function (key, value) {
+        return ee.Image(
+            ee.Algorithms.If(
+                ee.Number(value).eq(2),
+                image.select([key]).byte(),
+                ee.Image().rename([key]).byte().updateMask(image.select(0))
+            )
+        );
+    }
+);
+
+// Create an image with all bands (convert dictionary to image).
+var imageAllBands = ee.Image(
+    bandNames.iterate(
+        function (band, image) {
+            return ee.Image(image).addBands(bandsDictionary.get(ee.String(band)));
+        },
+        ee.Image().select()
+    )
+);
+
+// Create an image representing the year for each pixel.
+var imagePixelYear = ee.Image.constant(years)
+    .updateMask(imageAllBands)
+    .rename(bandNames);
+
+// Add connected pixels bands.
+var imageFilledConnected = image.addBands(
+    image
+        .connectedPixelCount(100, true)
+        .rename(bandNames.map(
+            function (band) {
+                return ee.String(band).cat('_conn');
+            }
+        ))
+);
+//print(imageFilledConnected);
+
+// Set metadata for the image.
+imageFilledConnected = imageFilledConnected
+.set('territory', 'BRAZIL')
+.set('biome', 'MATAATLANTICA')
+.set('source', 'arcplan')
+.set('version', versao_out)
+.set('collection_id', col)
+.set('description', descricao);
+
+// Export the image to an asset.
+Export.image.toAsset({
+    'image': imageFilledConnected,
+    'description': prefixo_out+versao_out,
+    'assetId': dirout+prefixo_out+versao_out,
+    'pyramidingPolicy': {
+        '.default': 'mode'
+    },
+    'region': geometry1,
+    'scale': 30,
+    'maxPixels': 1e13
+});
