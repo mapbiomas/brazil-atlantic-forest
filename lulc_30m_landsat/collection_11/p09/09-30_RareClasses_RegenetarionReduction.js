@@ -1,0 +1,321 @@
+/**
+ * PROJECT: MapBiomas - Atlantic Forest (Collection 11)
+ * OBJECTIVE: Reducing recent regeneration of specific non-forest natural classes.
+ * 
+ * DESCRIPTION:
+ * This script reduces recent regeneration by identifying their first appearance after a certain date and suppressing 
+ * them for the rest of the time series. It identifies one-year transitions from an anthropic class to a non-forest
+ * natural class and, once identified, prevents that pixel from being classified as the natural class again for all 
+ * subsequent years. It corrects (masks) images for specific year-to-year transitions, avoiding regeneration events.
+ * It identifies pixels that were Mosaic of Uses (21) in YEAR and became Non-Forest Natural Class (4, 11, 12, 29) in 
+ * YEAR+1. This is the signature of a regeneration event. It takes the pixels where this regeneration occurred and,
+ * using .remap([1],[21]), creates a new image where these specific pixel locations have the value 21. This is a 
+ * "reversal" or "correction" image. It does this for four specific non-forest natural classes, but applies the rule 
+ * starting from different years:
+ * If Savanna Formation (4) then corrects any regeneration that occurs from 2019 onwards.
+ * If Wetland (11) then corrects any regeneration that occurs from 2010 onwards.
+ * If Grassland (12) then corrects any regeneration that occurs from 2015 onwards.
+ * If Rocky Outcrop (29) then corrects any regeneration that occurs from 2019 onwards.
+ * 
+ * The cumulative application logic applies the corrections in a cumulative and permanent way.
+ * The script loops through each year, from the starting year of each of the four non-forest natural classes.
+ * Once a regeneration event is flagged as "noise" in a given year,
+ * that pixel is effectively locked out from being classified as that non-forest natural class for all future years in the series.
+ * For instance, if a pixel becomes Wetland in 2011, this script will ensure it is classified as 21 not only in 2011
+ * but also in 2012, 2013, ..., all the way to the last year of the time series (2025).
+ * 
+ * It uses as input data output data from script 09-20.
+ * The output data from this script is used as an input in script 09-40.
+ * 
+ */
+
+// Define the description of the process.
+var descricao = 'Rare classes regeneration reduction';
+
+// Define the geometry for the Atlantic Forest region.
+var limite_MA = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-48.593359954293625, -30.678347823900353],
+          [-47.275000579293625, -25.525376684152373],
+          [-40.595313079293625, -23.284530667538736],
+          [-33.915625579293625, -6.580343714417967],
+          [-35.453711516793625, -4.217995607905081],
+          [-44.198828704293625, -17.856203449528717],
+          [-50.483008391793625, -17.52126295946964],
+          [-55.712500579293625, -21.74193426005608],
+          [-55.492774016793625, -29.72888025446976]]]);
+
+// Define the input version number (from previous step) and output version number.
+var vesion_in = '13';
+var versao_out = '14';
+
+// Define the collection id.
+var col = 11.0;
+
+// Define input and output prefixes for asset naming.
+var prefixo_in  = 'MA_col'+col+'_p09b_v';
+var prefixo_out = 'MA_col'+col+'_p09c_v';
+
+// Define input and output directories for assets.
+var dirin = 'projects/mapbiomas-brazil/assets/LAND-COVER/COLLECTION-'+col+'/GENERAL/classification-mat/';
+var dirout = 'projects/mapbiomas-brazil/assets/LAND-COVER/COLLECTION-'+col+'/GENERAL/classification-mat-ft/';
+
+// Define the year and biome.
+var ano = 2020;
+var bioma = "MATAATLANTICA";
+var biomes_img = ee.Image('projects/mapbiomas-workspace/AUXILIAR/biomas-raster-41');
+var biome_img = biomes_img.mask(biomes_img.eq(2));
+
+// Load the input image (collection 10).
+var imgCol =  ee.Image(dirout+prefixo_in+vesion_in);
+
+// Import the palettes module.
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+// Define visualization parameters.
+var vis = {
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+var vis2 = {
+    'bands': 'classification_'+ano,
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+
+// Select specific classification bands for individual years from the loaded image collection.
+// These specific years are used to create masks for temporal corrections.
+var imgCol_2010 = imgCol.select('classification_2010');
+var imgCol_2011 = imgCol.select('classification_2011');
+var imgCol_2012 = imgCol.select('classification_2012');
+var imgCol_2013 = imgCol.select('classification_2013');
+var imgCol_2014 = imgCol.select('classification_2014');
+var imgCol_2015 = imgCol.select('classification_2015');
+var imgCol_2016 = imgCol.select('classification_2016');
+var imgCol_2017 = imgCol.select('classification_2017');
+var imgCol_2018 = imgCol.select('classification_2018');
+var imgCol_2019 = imgCol.select('classification_2019');
+var imgCol_2020 = imgCol.select('classification_2020');
+var imgCol_2021 = imgCol.select('classification_2021');
+var imgCol_2022 = imgCol.select('classification_2022');
+var imgCol_2023 = imgCol.select('classification_2023');
+var imgCol_2024 = imgCol.select('classification_2024');
+var imgCol_2025 = imgCol.select('classification_2025');
+
+// Add the selected classifications to the map.
+Map.addLayer(imgCol_2022, vis, 'imgCol_2022', true);
+Map.addLayer(imgCol_2024, vis, 'imgCol_2024', true);
+
+// Define correction rules and the starting years for applying them to different rare classes.
+// Wetland (11) correction starts from 2010 (examining 2010->2011 transition onwards).
+// Grassland (12) correction starts from 2015 (examining 2014->2015 transition onwards).
+// Savanna Formation (4) correction starts from 2020 (examining 2019->2020 transition onwards).
+// Rocky Outcrop (29) correction starts from 2020 (examining 2019->2020 transition onwards).
+
+// Wetland (11) regeneration.
+// Create masks to identify regeneration for Wetland (11).
+// This mask identifies pixels that transition from class 21 (mosaic) to class 11 in consecutive years.
+// If the condition is met (pixel value is 1 in the temporary binary mask), remap it to 21.
+var ruido11_11 = (imgCol_2010.eq(21).and(imgCol_2011.eq(11))).remap([1],[21]);
+var ruido11_12 = (imgCol_2011.eq(21).and(imgCol_2012.eq(11))).remap([1],[21]);
+var ruido11_13 = (imgCol_2012.eq(21).and(imgCol_2013.eq(11))).remap([1],[21]);
+var ruido11_14 = (imgCol_2013.eq(21).and(imgCol_2014.eq(11))).remap([1],[21]);
+var ruido11_15 = (imgCol_2014.eq(21).and(imgCol_2015.eq(11))).remap([1],[21]);
+var ruido11_16 = (imgCol_2015.eq(21).and(imgCol_2016.eq(11))).remap([1],[21]);
+var ruido11_17 = (imgCol_2016.eq(21).and(imgCol_2017.eq(11))).remap([1],[21]);
+var ruido11_18 = (imgCol_2017.eq(21).and(imgCol_2018.eq(11))).remap([1],[21]);
+var ruido11_19 = (imgCol_2018.eq(21).and(imgCol_2019.eq(11))).remap([1],[21]);
+var ruido11_20 = (imgCol_2019.eq(21).and(imgCol_2020.eq(11))).remap([1],[21]);
+var ruido11_21 = (imgCol_2020.eq(21).and(imgCol_2021.eq(11))).remap([1],[21]);
+var ruido11_22 = (imgCol_2021.eq(21).and(imgCol_2022.eq(11))).remap([1],[21]);
+var ruido11_23 = (imgCol_2022.eq(21).and(imgCol_2023.eq(11))).remap([1],[21]);
+var ruido11_24 = (imgCol_2023.eq(21).and(imgCol_2024.eq(11))).remap([1],[21]);
+var ruido11_25 = (imgCol_2024.eq(21).and(imgCol_2025.eq(11))).remap([1],[21]);
+
+// Grassland (12) regeneration.
+// Create masks to identify regeneration for Grassland (12).
+// This mask identifies pixels that transition from class 21 to class 12 in consecutive years.
+// If the condition is met (pixel value is 1), remap it to 21.
+var ruido12_15 = (imgCol_2014.eq(21).and(imgCol_2015.eq(12))).remap([1],[21]);
+var ruido12_16 = (imgCol_2015.eq(21).and(imgCol_2016.eq(12))).remap([1],[21]);
+var ruido12_17 = (imgCol_2016.eq(21).and(imgCol_2017.eq(12))).remap([1],[21]);
+var ruido12_18 = (imgCol_2017.eq(21).and(imgCol_2018.eq(12))).remap([1],[21]);
+var ruido12_19 = (imgCol_2018.eq(21).and(imgCol_2019.eq(12))).remap([1],[21]);
+var ruido12_20 = (imgCol_2019.eq(21).and(imgCol_2020.eq(12))).remap([1],[21]);
+var ruido12_21 = (imgCol_2020.eq(21).and(imgCol_2021.eq(12))).remap([1],[21]);
+var ruido12_22 = (imgCol_2021.eq(21).and(imgCol_2022.eq(12))).remap([1],[21]);
+var ruido12_23 = (imgCol_2022.eq(21).and(imgCol_2023.eq(12))).remap([1],[21]);
+var ruido12_24 = (imgCol_2023.eq(21).and(imgCol_2024.eq(12))).remap([1],[21]);
+var ruido12_25 = (imgCol_2024.eq(21).and(imgCol_2025.eq(12))).remap([1],[21]);
+
+// Rocky Outcrop (29) regeneration.
+// Create masks to identify regeneration for Rocky Outcrop (29).
+// This mask identifies pixels that transition from class 21 to class 29 in consecutive years.
+// If the condition is met (pixel value is 1), remap it to 21.
+var ruido29_19 = (imgCol_2018.eq(21).and(imgCol_2019.eq(29))).remap([1],[21]);
+var ruido29_20 = (imgCol_2019.eq(21).and(imgCol_2020.eq(29))).remap([1],[21]);
+var ruido29_21 = (imgCol_2020.eq(21).and(imgCol_2021.eq(29))).remap([1],[21]);
+var ruido29_22 = (imgCol_2021.eq(21).and(imgCol_2022.eq(29))).remap([1],[21]);
+var ruido29_23 = (imgCol_2022.eq(21).and(imgCol_2023.eq(29))).remap([1],[21]);
+var ruido29_24 = (imgCol_2023.eq(21).and(imgCol_2024.eq(29))).remap([1],[21]);
+var ruido29_25 = (imgCol_2024.eq(21).and(imgCol_2025.eq(29))).remap([1],[21]);
+
+// Savanna Formation (4) regeneration.
+// Create masks to identify regeneration for Savanna Formation (4).
+// This mask identifies pixels that transition from class 21 to class 4 in consecutive years.
+// If the condition is met (pixel value is 1), remap it to 21.
+var ruido04_19 = (imgCol_2018.eq(21).and(imgCol_2019.eq(4))).remap([1],[21]);
+var ruido04_20 = (imgCol_2019.eq(21).and(imgCol_2020.eq(4))).remap([1],[21]);
+var ruido04_21 = (imgCol_2020.eq(21).and(imgCol_2021.eq(4))).remap([1],[21]);
+var ruido04_22 = (imgCol_2021.eq(21).and(imgCol_2022.eq(4))).remap([1],[21]);
+var ruido04_23 = (imgCol_2022.eq(21).and(imgCol_2023.eq(4))).remap([1],[21]);
+var ruido04_24 = (imgCol_2023.eq(21).and(imgCol_2024.eq(4))).remap([1],[21]);
+var ruido04_25 = (imgCol_2024.eq(21).and(imgCol_2025.eq(4))).remap([1],[21]);
+
+// Define the years to process.
+var anos = [1985,1986,1987,1988,1989,1990,1991,1992,1993,1994,
+            1995,1996,1997,1998,1999,2000,2001,2002,2003,2004,
+            2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,
+            2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025];
+
+// Loop through the years in the list and apply corrections.
+for (var i_ano=0;i_ano<anos.length; i_ano++){
+  // Get the current year.
+  var ano = anos[i_ano];
+  
+  // Select the classification band for the current year.
+  var class_ano = imgCol.select('classification_'+ano);
+
+  // Apply corrections based on the year.
+  // If the current year is 2015:
+    if (ano == 2015) {  
+    // Apply the noise correction for Grassland (12) transitioning from 21 between 2014 and 2015.
+    // Pixels where the condition (21 in 2014 and 12 in 2015) is met will be set back to 21 in this year's output band.
+    class_corr = class_ano
+    .blend(ruido12_15);
+
+  // If the current year is 2016:    
+  } else if (ano == 2016) {  
+    // Apply noise corrections for Grassland (12) transitions from 21 (2014->2015 and 2015->2016).
+    class_corr = class_ano
+    .blend(ruido12_15).blend(ruido12_16);
+    
+  // If the current year is 2017:
+  } else if (ano == 2017) {  
+    // Apply noise corrections for Grassland (12) transitions from 21 (2014->2015, 2015->2016, 2016->2017).
+    class_corr = class_ano
+    .blend(ruido12_15).blend(ruido12_16).blend(ruido12_17);
+    
+  // If the current year is 2018:
+  } else if (ano == 2018) {  
+    // Apply noise corrections for Grassland (12) transitions from 21 (2014->2015 up to 2017->2018).
+    class_corr = class_ano
+    .blend(ruido12_15).blend(ruido12_16).blend(ruido12_17).blend(ruido12_18);
+                                                                            
+  // If the current year is 2019:
+  } else if (ano == 2019) {  
+    // Apply noise corrections for Grassland (12), Savanna (4), and Rocky Outcrop (29)
+    // transitioning from 21 for specific years up to 2018->2019.
+    class_corr = class_ano
+    .blend(ruido12_15).blend(ruido12_16).blend(ruido12_17).blend(ruido12_18).blend(ruido12_19)
+                                                                            .blend(ruido04_19)
+                                                                            .blend(ruido29_19);
+                                                                                                                                                    
+  // If the current year is 2020:
+  } else if (ano == 2020) {  
+    // Apply cumulative noise corrections for Grassland (12), Savanna (4), and Rocky Outcrop (29) up to 2019->2020 transitions.
+    class_corr = class_ano
+    .blend(ruido12_15).blend(ruido12_16).blend(ruido12_17).blend(ruido12_18).blend(ruido12_19).blend(ruido12_20)
+                                                                            .blend(ruido04_19).blend(ruido04_20)
+                                                                            .blend(ruido29_19).blend(ruido29_20);
+                                                                                                                                                    
+  // If the current year is 2021:
+  } else if (ano == 2021) {  
+    // Apply cumulative noise corrections for Grassland (12), Savanna (4), and Rocky Outcrop (29) up to 2020->2021 transitions.
+    class_corr = class_ano
+    .blend(ruido12_15).blend(ruido12_16).blend(ruido12_17).blend(ruido12_18).blend(ruido12_19).blend(ruido12_20).blend(ruido12_21)
+                                                                            .blend(ruido04_19).blend(ruido04_20).blend(ruido04_21)
+                                                                            .blend(ruido29_19).blend(ruido29_20).blend(ruido29_21);
+                                                                                                                                                    
+  // If the current year is 2022:
+  } else if (ano == 2022) {  
+    // Apply cumulative noise corrections for Grassland (12), Savanna (4), and Rocky Outcrop (29) up to 2021->2022 transitions.
+    class_corr = class_ano
+    .blend(ruido12_15).blend(ruido12_16).blend(ruido12_17).blend(ruido12_18).blend(ruido12_19).blend(ruido12_20).blend(ruido12_21).blend(ruido12_22)
+                                                                            .blend(ruido04_19).blend(ruido04_20).blend(ruido04_21).blend(ruido04_22)
+                                                                            .blend(ruido29_19).blend(ruido29_20).blend(ruido29_21).blend(ruido29_22);
+                                                                                                                                                    
+  // If the current year is 2023:
+  } else if (ano == 2023) {  
+    // Apply cumulative noise corrections for Grassland (2), Savanna (4), and Rocky Outcrop (29) up to 2022->2023 transitions.
+    class_corr = class_ano
+    .blend(ruido12_15).blend(ruido12_16).blend(ruido12_17).blend(ruido12_18).blend(ruido12_19).blend(ruido12_20).blend(ruido12_21).blend(ruido12_22).blend(ruido12_23)
+                                                                            .blend(ruido04_19).blend(ruido04_20).blend(ruido04_21).blend(ruido04_22).blend(ruido04_23)
+                                                                            .blend(ruido29_19).blend(ruido29_20).blend(ruido29_21).blend(ruido29_22).blend(ruido29_23);
+                                                                                                                                                    
+  // If the current year is 2024:
+  } else if (ano == 2024) {  
+    // Apply cumulative noise corrections for Grassland (12), Savanna (4), and Rocky Outcrop (29) up to 2023->2024 transitions.
+    class_corr = class_ano
+    .blend(ruido12_15).blend(ruido12_16).blend(ruido12_17).blend(ruido12_18).blend(ruido12_19).blend(ruido12_20).blend(ruido12_21).blend(ruido12_22).blend(ruido12_23).blend(ruido12_24)
+                                                                            .blend(ruido04_19).blend(ruido04_20).blend(ruido04_21).blend(ruido04_22).blend(ruido04_23).blend(ruido04_24)
+                                                                            .blend(ruido29_19).blend(ruido29_20).blend(ruido29_21).blend(ruido29_22).blend(ruido29_23).blend(ruido29_24);
+
+                                                                                                                                                    
+  } else if (ano == 2025) {  
+    // Apply cumulative noise corrections for Grassland (12), Savanna (4), and Rocky Outcrop (29) up to 2024->2025 transitions.
+    class_corr = class_ano
+    .blend(ruido12_15).blend(ruido12_16).blend(ruido12_17).blend(ruido12_18).blend(ruido12_19).blend(ruido12_20).blend(ruido12_21).blend(ruido12_22).blend(ruido12_23).blend(ruido12_24).blend(ruido12_25)
+                                                                            .blend(ruido04_19).blend(ruido04_20).blend(ruido04_21).blend(ruido04_22).blend(ruido04_23).blend(ruido04_24).blend(ruido04_25)
+                                                                            .blend(ruido29_19).blend(ruido29_20).blend(ruido29_21).blend(ruido29_22).blend(ruido29_23).blend(ruido29_24).blend(ruido29_25);
+                                                                                                                                                    
+  }
+
+  // If the current year is not within the range of years where these specific
+  // cumulative blend rules apply, keep the classification from the input image as is for this year.
+  else {var class_corr = class_ano;}
+
+  // Combine the corrected classifications for all years into a single multi-band image.
+  // For the first year (i_ano == 0), initialize `class_final`.
+  if (i_ano == 0){ var class_final = class_corr;}  
+  // For subsequent years, add the current year's corrected classification as a new band to `class_final`.
+  else {class_final = class_final.addBands(class_corr);}
+
+}
+
+// Add the original and corrected classifications to the map.
+Map.addLayer(imgCol, vis2, 'original', true);
+Map.addLayer(class_final, vis2, 'class_final', true);
+
+//Map.addLayer(class_final.eq(imgCol).selfMask(), {
+//    'bands': ['classification_2021'],
+//    'min': 0,
+//    'max': 1,
+//    'palette': ['#ffffff', '#000000'],
+//    'format': 'png',
+//    'opacity': 0.8
+//}, 'changes');
+
+// Set the metadata for the final classification image.
+class_final = class_final
+.set('territory', 'BRAZIL')
+.set('biome', 'MATAATLANTICA')
+.set('source', 'arcplan')
+.set('version', versao_out)
+.set('collection_id', col)
+.set('description', descricao);
+
+// Export the final classification image to an asset.
+Export.image.toAsset({
+    "image": class_final.toInt8(),
+    'description': prefixo_out+versao_out,
+    'assetId': dirout+prefixo_out+versao_out,
+    "scale": 30,
+    "pyramidingPolicy": {
+        '.default': 'mode'
+    },
+    "maxPixels": 1e13,
+    "region": limite_MA,
+    "overwrite": true
+});

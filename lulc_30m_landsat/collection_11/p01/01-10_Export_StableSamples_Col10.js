@@ -1,0 +1,191 @@
+/**
+ * PROJECT: MapBiomas - Atlantic Forest (Collection 11)
+ * OBJECTIVE: Exporting stable samples from the previous published collection.
+ * 
+ * DESCRIPTION:
+ * This script exports an asset with the stable areas in the 40 years (1985 to 2024) of LULC for the Collection 10 of MapBiomas.
+ * 
+ * Uses a simplified legend with ‘remap’:
+ *   3, 5, 49                                        to  3 (Forest Formation);
+ *   4                                               to  4 (Savanna Formation);
+ *   9                                               to  9 (Forest Plantation);
+ *   11                                              to 11 (Wetland);
+ *   12, 29, 32                                      to 12 (Grassland);
+ *   15, 18, 19, 20, 21, 36, 39, 40, 41, 46, 47, 48  to 21 (Mosaic of Uses);
+ *   22, 23, 24, 25, 30                              to 22 (Non vegetated area);
+ *   26, 31, 33                                      to 33 (River, Lake and Ocean);
+ *   50                                              to 50 (Herbaceous Sandbank Vegetation).
+ * 
+ * Generates a frequency mask for LULC classes, that counts the number of times a given class appears across all images in the collection.
+ * This mask shows where the class from each pixel (of the 9 classes from the simplified legend) have a frequency of 39 (total number of years).
+ * These are considered stable pixels and are included in the output.
+ * 
+ * The output data from this script is used on the next script (01-20) as an input.
+ */
+
+// Define a polygon geometry representing the Atlantic Forest area.
+var limite_MA = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-48.593359954293625, -30.678347823900353],
+          [-47.275000579293625, -25.525376684152373],
+          [-40.595313079293625, -23.284530667538736],
+          [-33.915625579293625, -6.580343714417967],
+          [-35.453711516793625, -4.217995607905081],
+          [-44.198828704293625, -17.856203449528717],
+          [-50.483008391793625, -17.52126295946964],
+          [-55.712500579293625, -21.74193426005608],
+          [-55.492774016793625, -29.72888025446976]]]);
+
+// Define the output directory and version.
+var dirout = 'projects/mapbiomas-brazil/assets/LAND-COVER/COLLECTION-11/GENERAL/STABLE/MATAATLANTICA/';
+var versao_out = '1';
+var colN  = '10'
+
+// Define one year for visualization.
+var oneYear = 2020;
+
+// Import the MapBiomas palettes module.
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+// Define visualization parameters for the MapBiomas collection 10.
+var vis = {
+    'bands': ['classification_' + String(oneYear)],
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+
+// Load the MapBiomas collection 10 image for the specified year.
+var col = ee.Image('projects/mapbiomas-public/assets/brazil/lulc/collection10_1/mapbiomas_brazil_collection10_1_coverage_v1');
+
+// Add the MapBiomas collection 9 image to the map.
+Map.addLayer(col, vis, 'Classes ORIGINAIS '+oneYear, true);
+
+// Define an array of years for analysis. Total of 40 years.
+var anos = ['1985','1986','1987','1988','1989','1990','1991','1992','1993','1994',
+            '1995','1996','1997','1998','1999','2000','2001','2002','2003','2004',
+            '2005','2006','2007','2008','2009','2010','2011','2012','2013','2014',
+            '2015','2016','2017','2018','2019','2020','2021','2022','2023','2024'];
+
+// Create an image collection from the MapBiomas collection 9, remapping class values.
+var colList = anos.map(function (year) {
+        var image = col.select('classification_'+year).remap(
+                  [3, 5,49, 4, 9,11,12,29,32,15,18,19,20,21,36,39,40,41,46,47,48,22,23,24,25,30,26,31,33,50],
+                  [3, 3, 3, 4, 9,11,12,12,12,21,21,21,21,21,21,21,21,21,21,21,21,22,22,22,22,22,33,33,33,50])
+        return image.int8();
+    }
+);
+// Print the image collection to the console.
+print(colList);
+
+// Convert the list of images to an ImageCollection.
+var collection = ee.ImageCollection(colList);
+
+/**
+ * This function takes an array as input and returns a new array containing only the unique elements from the input array.
+ * It uses an object `u` as a hash table to efficiently track whether an element has already been encountered.
+ *
+ * @param {Array} arr - The input array.
+ * @return {Array} A new array containing only the unique elements from the input array.
+ */
+var unique = function(arr) {
+    var u = {}, // Create an empty object `u` to store unique elements.  This acts as a hash table.
+        a = []; // Create an empty array `a` to store the unique elements that will be returned.
+    // Iterate over the input array `arr`.
+    for (var i = 0, l = arr.length; i < l; ++i) {
+        // Check if the current element `arr[i]` is already a key in the `u` object.  If not, it's a unique element.
+        if (!u.hasOwnProperty(arr[i])) {
+            a.push(arr[i]); // Add the unique element to the `a` array.
+            u[arr[i]] = 1;  // Add the unique element as a key to the `u` object with a value of 1. This marks it as seen.
+        }
+    }
+    return a; // Return the array `a` containing only the unique elements.
+};
+
+/**
+ * REFERENCE MAP
+ */
+
+/**
+ * This function generates a frequency mask for a specified land cover class from an Earth Engine ImageCollection.
+ * It counts the number of times a given class appears across all images in the collection and
+ * creates a mask indicating where the class occurs with a frequency greater than or equal to a threshold.
+ *
+ * @param {ee.ImageCollection} collection - An Earth Engine ImageCollection containing land cover classification images.
+ *   Each image should have a band representing the land cover classification.
+ * 
+ * @param {string} classId - A string representing the land cover class ID to generate the frequency mask for.
+ *   This ID should correspond to a value in the classification bands of the images.
+ * 
+ * @return {ee.Image} An Earth Engine Image representing the frequency mask.
+ *   The mask has a single band named 'frequency' containing the class ID where the class frequency meets the threshold,
+ *   and 0 otherwise.  The image also includes a property 'class_id' storing the input classId.
+ */
+var getFrenquencyMask = function(collection, classId) {
+    // Convert the class ID string to an integer.
+    var classIdInt = parseInt(classId, 10);
+    // Create an ImageCollection of binary masks.
+    // Each image in the collection will have a value of 1 where the specified classId is present and 0 otherwise.
+    var maskCollection = collection.map(function(image) {
+        return image.eq(classIdInt);
+    });
+    // Reduce the ImageCollection by summing the binary masks.
+    // This results in an image where each pixel value represents the frequency of the classId across all images in the collection.
+    var frequency = maskCollection.reduce(ee.Reducer.sum());
+    // Create the frequency mask. Pixels where the frequency is greater than or equal to the threshold (defined in classFrequency)
+    // will retain the classIdInt value; otherwise, they will be 0. The result is converted to a byte image.
+    var frequencyMask = frequency.gte(classFrequency[classId])
+        .multiply(classIdInt)
+        .toByte();
+    // Apply a mask to set pixels with values other than the classIdInt to 0.
+    // This ensures that only pixels representing the target class with sufficient frequency are included in the output.
+    frequencyMask = frequencyMask.mask(frequencyMask.eq(classIdInt));
+    // Rename the band to 'frequency' and add a property 'class_id' for better organization and tracking.
+    return frequencyMask.rename('frequency').set('class_id', classId);
+};
+
+// Define the minimum frequency for each class to be considered persistent.
+// 39 represents the total number of years evaluated.
+//  3 (Forest Formation), 4 (Savanna Formation),   9 (Forest Plantation),
+// 11 (Wetland),         12 (Grassland),          50 (Herbaceous Sandbank Vegetation),
+// 21 (Mosaic of Uses),  22 (Non vegetated area), 33 (River, Lake and Ocean)
+var nrYears = 40;
+var classFrequency = { "3": nrYears,  "4": nrYears,  "9": nrYears,
+                      "11": nrYears, "12": nrYears, "50": nrYears,
+                      "21": nrYears, "22": nrYears, "33": nrYears};
+
+// Generate frequency masks for each class.
+var frequencyMasks = Object.keys(classFrequency).map(function(classId) {
+    return getFrenquencyMask(collection, classId);
+});
+
+// Convert the list of frequency masks to an ImageCollection.
+frequencyMasks = ee.ImageCollection.fromImages(frequencyMasks);
+
+// Create the reference map by reducing the frequency masks. Clip to the geometry.
+var referenceMap = frequencyMasks.reduce(ee.Reducer.firstNonNull()).clip(limite_MA);
+
+// Mask out class 27 (Not Observed).
+referenceMap = referenceMap.mask(referenceMap.neq(27)).rename("reference");
+
+// Define visualization parameters for the reference map.
+var vis2 = {
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+// Add the reference map to the map.
+Map.addLayer(referenceMap, vis2, 'Classes persistentes 85 a 24', true);
+
+// Export the reference map as an asset.
+Export.image.toAsset({
+    "image": referenceMap.toInt8(),
+    "description": 'MA_amostras_estaveis85a24_col'+colN+'_v'+versao_out,
+    "assetId": dirout + 'MA_amostras_estaveis85a24_col'+colN+'_v'+versao_out,
+    "scale": 30,
+    "pyramidingPolicy": {
+        '.default': 'mode'
+    },
+    "maxPixels": 1e13,
+    "region": limite_MA,
+    // "overwrite": true
+});  

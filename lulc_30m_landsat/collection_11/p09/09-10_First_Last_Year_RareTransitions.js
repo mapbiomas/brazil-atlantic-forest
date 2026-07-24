@@ -1,0 +1,285 @@
+/**
+ * PROJECT: MapBiomas - Atlantic Forest (Collection 11)
+ * OBJECTIVE: Correcting potential classification errors in the first (1985) and last (2025) years of the time series,
+ * reducing one-year deforestation and regeneration events
+ * 
+ * DESCRIPTION:
+ * This is a post-processing and cleaning script. It defines the time range (1985-2025) and explicitly selects the 
+ * classification bands for the key years of interest: the first two (1985, 1986) and the last three (2022, 2023, and 2025).
+ * 
+ * First Year Deforestation Correction:
+ * It looks for small patches of pixels that were a native vegetation class in 1985 and became Mosaic of Uses (21) in 1986.
+ * It changes the 1985 pixel classification to Mosaic of Uses (21).
+ * First Year Regeneration Correction:
+ * It looks for small patches of pixels that were Mosaic of Uses (21) in 1985 and became native vegetation in 1986.
+ * It changes  the 1985 pixel classification to the corresponding native vegetation class.
+ * Last Year Deforestation Correction:
+ * It looks for small patches of pixels that were native vegetation in the second-to-last year
+ * but became Mosaic of Uses (21) in the final year (2025). The pixel in 2025 is changed back to its original native vegetation class.
+ * Last Year Regeneration Correction:
+ * It looks for small patches of pixels that were Mosaic of Uses (21) in the second-to-last year
+ * and became native vegetation in the final year (2025). It reverts the 2025 pixel classification back to Mosaic of Uses (21).
+ * 
+ * This script adjusts the start and end points of the time series to prevent one-year events from affecting long-term change analysis.
+ * For the first year it corrects the past based on the near future and for the last year is corrected based on the near past data.
+ * 
+ * It uses as input data output data from script 08-20.
+ * The output data from this script is used as an input in script 09-20.
+ * 
+ */ 
+
+// Define the description of the process.
+var descricao = 'First and last year rare classes transition';
+
+// Define the geometry for the Atlantic Forest region.
+var limite_MA = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-48.593359954293625, -30.678347823900353],
+          [-47.275000579293625, -25.525376684152373],
+          [-40.595313079293625, -23.284530667538736],
+          [-33.915625579293625, -6.580343714417967],
+          [-35.453711516793625, -4.217995607905081],
+          [-44.198828704293625, -17.856203449528717],
+          [-50.483008391793625, -17.52126295946964],
+          [-55.712500579293625, -21.74193426005608],
+          [-55.492774016793625, -29.72888025446976]]]);
+
+// Define the input version number (from previous step) and output version number.
+var vesion_in = '11';
+var versao_out = '12';
+
+// Define the collection id.
+var col = 11.0;
+
+// Define input and output prefixes for asset naming.
+var prefixo_in  = 'MA_col'+col+'_p08b_v';
+var prefixo_out = 'MA_col'+col+'_p09a_v';
+
+// Define input and output directories for assets.
+var dirin = 'projects/mapbiomas-brazil/assets/LAND-COVER/COLLECTION-'+col+'/GENERAL/classification-mat/';
+var dirout = 'projects/mapbiomas-brazil/assets/LAND-COVER/COLLECTION-'+col+'/GENERAL/classification-mat-ft/';
+
+// Define the year and biome.
+var oneYear = 2025;
+var bioma = "MATAATLANTICA";
+var biomes_img = ee.Image('projects/mapbiomas-workspace/AUXILIAR/biomas-raster-41');
+var biome_img = biomes_img.mask(biomes_img.eq(2));
+
+// Load the input image (collection 10).
+var imgCol =  ee.Image(dirout+prefixo_in+vesion_in);
+
+// Import the palettes module.
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+// Define visualization parameters.
+var vis = {
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+var vis2 = {
+    'bands': 'classification_'+oneYear,
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+
+// Create a list of years to process.
+var anos = ee.List.sequence(1985, 2025)                // Create a sequence of years from 1985 (A) to 2025 (B).
+                  .map(function(y){                                                     
+                        return ee.Number(y).int(); }); // Convert each year to an integer.
+
+// Get the size of the years list.
+var n = anos.size();                             // Get the number of years in the list.
+var ultimo = ee.Number(anos.get(n.subtract(1))); // Get the last year in the list.
+var penult = ee.Number(anos.get(n.subtract(2))); // Get the second to last year in the list.
+var antpen = ee.Number(anos.get(n.subtract(3))); // Get the third to last year in the list.
+
+// Select the classifications for specific years.
+var col_1985 = imgCol.select('classification_1985');                    // Select the classification band for 1985.
+var col_1986 = imgCol.select('classification_1986');                    // Select the classification band for 1986.
+var col_ant =  imgCol.select(ee.String('classification_').cat(antpen)); // Select the classification band for the third to last year.
+var col_pen =  imgCol.select(ee.String('classification_').cat(penult)); // Select the classification band for the second to last year.
+var col_ult =  imgCol.select(ee.String('classification_').cat(ultimo)); // Select the classification band for the last year.
+
+// Add the selected classifications to the map.
+Map.addLayer(col_1985, vis, 'col_1985', true);
+Map.addLayer(col_1986, vis, 'col_1986', true);
+Map.addLayer(col_pen,   vis, 'col_pen', true);
+Map.addLayer(col_ult,   vis, 'col_ult', true);
+
+// Function to correct deforestation in the first year.
+// This function corrects potential deforestation errors in the first year of the dataset
+// by comparing it to the following year and applying a connected pixel count filter to remove small, isolated patches.
+var classes = ([3,4,11,29,50]);                  // Define the classes to correct.
+var def_1stY = classes.map(function (classe) {   // Map over the classes.
+      var classStr = ee.Number(classe).format(); // Convert the class to a string.
+
+      var def_1985     = col_1985.eq(classe).and(col_1986.eq(21));  // Identify pixels classified as 3,4,11,29 or 50 in 1985 and as 21 in 1986.
+      var def_conn85   = def_1985.selfMask()
+                                 .connectedPixelCount(56,true)
+                                 .reproject('epsg:4326', null, 30); // Calculate the number of connected pixels for each patch.
+      var def_1ha85    = def_conn85.lte(55);                        // Mask out patches smaller than 55 connected pixels (approximately 1 hectare).
+      var def_ruido85  = def_1ha85.remap([1],[21]);                 // Remap the masked pixels to class 21.
+      
+      return def_ruido85.rename(ee.String('def_1stY_').cat(classStr)); // Rename the resulting image.
+      
+}); 
+// Convert the list of images to a single image.
+def_1stY = ee.Image(def_1stY);
+// print(def_1stY, 'def_1stY');
+
+
+// Function to correct regeneration in the first year. This function corrects potential 
+// regeneration errors in the first year of the dataset by comparing it to the following year.
+var classes = ([3,11]);                          // Define the classes to correct.
+var reg_1stY = classes.map(function (classe) {   // Map over the classes.
+      var classStr = ee.Number(classe).format(); // Convert the class to a string.
+      
+      var reg_1985      = col_1985.eq(21).and(col_1986.eq(classe)); // Identify pixels classified as 21 in 1985 and as 3 or 11 in 1986.
+      var reg_ruido85   = reg_1985.remap([1],[classe]);             // Remap the identified pixels to 'classe' (3 or 11).
+      
+      return reg_ruido85.rename(ee.String('reg_1stY_').cat(classStr)); // Rename the resulting image.
+});
+// Convert the list of images to a single image.
+reg_1stY = ee.Image(reg_1stY);
+// print(reg_1stY, 'reg_1stY');
+
+
+// Function to correct deforestation in the last year.
+// This function corrects potential deforestation errors in the last year of the dataset
+// by comparing it to the previous year and applying a connected pixel count filter to remove small, isolated patches.
+var classes = ([4,11,12,29,50]);                 // Define the classes to correct.
+var def_lastY = classes.map(function (classe) {  // Map over the classes.
+      var classStr = ee.Number(classe).format(); // Convert the class to a string.
+  
+      var def_last      = col_pen.eq(classe).and(col_ult.eq(21));    // Identify pixels classified as 4,11,12,29 or 50 in the second to last year and as 21 in the last year.
+      var def_connLast  = def_last.selfMask()
+                                  .connectedPixelCount(56,true)
+                                  .reproject('epsg:4326', null, 30); // Calculate the number of connected pixels for each patch.
+      var def_1haLast   = def_connLast.lte(55);                      // Mask out patches smaller than 55 connected pixels (approximately 1 hectare).
+      var def_ruidoLast = def_1haLast.remap([1],[classe]);           // Remap the masked pixels to 'classe' (4,11,12,29 or 50).
+      
+      return def_ruidoLast.rename(ee.String('def_lastY_').cat(classStr)); // Rename the resulting image.
+      
+});
+// Convert the list of images to a single image.
+def_lastY = ee.Image(def_lastY);
+// print(def_lastY, 'def_lastY');
+
+
+// Function to correct deforestation specifically for class 3 in the last year.
+// This function is similar to the previous deforestation correction function,
+// but it only operates on class 3 and uses a different threshold for connected pixel count.
+var flo = ([3]);                                 // Define the class to correct.
+var def_lastY_3 = flo.map(function (classe) {    // Map over the class.
+      var classStr = ee.Number(classe).format(); // Convert the class to a string.
+      
+      var def_last      = col_pen.eq(classe).and(col_ult.eq(21));    // Identify pixels classified as 3 in the second to last year and as 21 in the last year.
+      var def_connLast  = def_last.selfMask()
+                                  .connectedPixelCount(56,true)
+                                  .reproject('epsg:4326', null, 30); // Calculate the number of connected pixels for each patch.
+      var def_1haLast   = def_connLast.lte(22);                      // Mask out patches smaller than 22 connected pixels.
+      var def_ruidoLast = def_1haLast.remap([1],[classe]);           // Remap the masked pixels to 'classe' (3).
+      
+      return def_ruidoLast.rename(ee.String('def_lastY_').cat(classStr)); // Rename the resulting image.
+      
+});
+// Convert the list of images to a single image.
+def_lastY_3 = ee.Image(def_lastY_3);
+// print(def_lastY_3, 'def_lastY_3');
+
+
+// Function to correct regeneration in the last year.
+// This function corrects potential regeneration errors in the last year of the dataset
+// by comparing it to the previous year.
+var classes = ([4,11,12,29,50]);                 // Define the classes to correct.
+var reg_lastY = classes.map(function (classe) {  // Map over the classes.
+      var classStr = ee.Number(classe).format(); // Convert the class to a string.
+      
+      var reg_last      = col_pen.eq(21).and(col_ult.eq(classe)); // Identify pixels classified as 21 in the second to last year and as 4,11,12,29 or 50 in the last year.
+      var reg_ruidoLast = reg_last.remap([1],[21]);               // Remap the identified pixels to 21.
+      
+      return reg_ruidoLast.rename(ee.String('reg_lastY_').cat(classStr)); // Rename the resulting image.
+});
+// Convert the list of images to a single image.
+reg_lastY = ee.Image(reg_lastY);
+// print(reg_lastY, 'reg_lastY');
+
+
+// Generate the level 0 class image for all years.
+// This section processes the classification for each year, applying the corrections for the first and last years.
+var class_final = ee.ImageCollection(anos
+               .map(function(ano){
+                 ano = ee.Number(ano); // Convert year to number.
+                 var anoStr = ano.format(); // Format year as string.
+                 var class_ano = imgCol.select(ee.String('classification_').cat(anoStr)); // Select the classification band for the current year.
+
+                     var class_corr = ee.Image(ee.Algorithms.If(ano.eq(1985), // Apply corrections for 1985 (first year).
+                          class_ano.blend(def_1stY.select('def_1stY_3'))   // Blend the original classification with the corrected deforestation image for class 3.
+                                   .blend(def_1stY.select('def_1stY_4'))   // Blend the original classification with the corrected deforestation image for class 4.
+                                   .blend(def_1stY.select('def_1stY_11'))  // Blend the original classification with the corrected deforestation image for class 11.
+                                   .blend(def_1stY.select('def_1stY_29'))  // Blend the original classification with the corrected deforestation image for class 29.
+                                   .blend(def_1stY.select('def_1stY_50'))  // Blend the original classification with the corrected deforestation image for class 50.
+                                   .blend(reg_1stY.select('reg_1stY_3'))   // Blend the original classification with the corrected regeneration  image for class 3.
+                                   .blend(reg_1stY.select('reg_1stY_11')), // Blend the original classification with the corrected regeneration  image for class 11.
+                                   
+                                   ee.Algorithms.If(ano.eq(ultimo), // Apply corrections for the last year.
+                          class_ano.blend(def_lastY_3)                       // Blend the original classification with the corrected deforestation image for class 3.
+                                   .blend(def_lastY.select('def_lastY_4'))   // Blend the original classification with the corrected deforestation image for class 4.
+                                   .blend(def_lastY.select('def_lastY_11'))  // Blend the original classification with the corrected deforestation image for class 11.
+                                   .blend(def_lastY.select('def_lastY_12'))  // Blend the original classification with the corrected deforestation image for class 12.
+                                   .blend(def_lastY.select('def_lastY_29'))  // Blend the original classification with the corrected deforestation image for class 29.
+                                   .blend(def_lastY.select('def_lastY_50'))  // Blend the original classification with the corrected deforestation image for class 50.
+                                   .blend(reg_lastY.select('reg_lastY_4'))   // Blend the original classification with the corrected regeneration  image for class 4.
+                                   .blend(reg_lastY.select('reg_lastY_11'))  // Blend the original classification with the corrected regeneration  image for class 11.
+                                   .blend(reg_lastY.select('reg_lastY_12'))  // Blend the original classification with the corrected regeneration  image for class 12.
+                                   .blend(reg_lastY.select('reg_lastY_29'))  // Blend the original classification with the corrected regeneration  image for class 29.
+                                   .blend(reg_lastY.select('reg_lastY_50')), // Blend the original classification with the corrected regeneration  image for class 50.
+                                   
+                                   class_ano // Otherwise, no correction is applied.
+                                   )));
+
+                        return class_corr;     // Return the corrected classification image for the current year.
+                                })).toBands(); // Convert the image collection to a multi-band image.
+
+// Function to rename bands in an image, removing a prefix.
+var corrIndx  = function (img){
+                  // Get the names of all bands in the image.
+                  var indxNames = img.bandNames();                              //bandNames creates an ee.List from bands of an ee.Image
+                  // Create a new list of band names by removing the prefix from each original band name.
+                  var bandNames = indxNames.map(function(nome){                 // Map over the band names.
+                          return ee.String(nome).split('_').slice(1).join('_'); // Split the band name, remove the prefix, and rejoin.
+                                      });
+                                      
+                  // Return the image with renamed bands.
+                  return img.select(indxNames,bandNames); // Select the bands and rename them.
+                              };
+    class_final = corrIndx(class_final); // Rename the bands in the final image.
+
+
+// Add the original and corrected classifications to the map.
+Map.addLayer(imgCol, vis2, 'imgCol'+oneYear, true);
+Map.addLayer(class_final, vis2, 'class_final'+oneYear, true);
+
+// Set the metadata for the final classification image.
+class_final = class_final
+.set('territory', 'BRAZIL')
+.set('biome', 'MATAATLANTICA')
+.set('source', 'arcplan')
+.set('version', versao_out)
+.set('collection_id', col)
+.set('description', descricao);
+
+// Export the final classification image to an asset.
+Export.image.toAsset({
+    "image": class_final.toInt8(),
+    'description': prefixo_out+versao_out,
+    'assetId': dirout+prefixo_out+versao_out,
+    "scale": 30,
+    "pyramidingPolicy": {
+        '.default': 'mode'
+    },
+    "maxPixels": 1e13,
+    "region": limite_MA,
+    "overwrite": true
+});

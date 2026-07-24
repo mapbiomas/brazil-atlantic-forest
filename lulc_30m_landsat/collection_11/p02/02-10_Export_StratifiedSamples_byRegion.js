@@ -1,0 +1,159 @@
+/**
+ * PROJECT: MapBiomas - Atlantic Forest (Collection 11)
+ * OBJECTIVE: Stratified sampling by region.
+ * 
+ * DESCRIPTION:
+ * This script creates a stratified sample table based on a stable classification image (from script 01-20) of the Atlantic Forest.
+ * It samples each region individually and the number of samples for each class is representative of its abundance within that region.
+ *            |  1   |  2
+ * main       | 3000 | 4000
+ * secondary  | 2000 | 1000
+ * rare       | 300  | 500
+ * zero       | 0    | 0
+ *
+ * The number of samples for each class is specified in a list.
+ * Exports the stratified sample as a table to an asset in GEE.
+ * 
+ * This script uses the stratified sample table from script 02-10 as an input.
+ * The output data from this script is used on scripts 04-XX as an input.
+ * The output data from this script is used on another script (03-10) as an input.
+ */
+
+// Define output and stable version numbers.
+var versao_estavel = '2';
+// Define the output version.
+var versao_out = '1';
+
+// Define current collection
+var colN = '10'
+
+// Define the output directory path in Google Earth Engine.
+var dirout = 'projects/mapbiomas-brazil/assets/LAND-COVER/COLLECTION-11/GENERAL/SAMPLES/MATAATLANTICA/';
+
+// Import the stable map image.
+var mapa_estavel = ee.Image('projects/mapbiomas-brazil/assets/LAND-COVER/COLLECTION-11/GENERAL/STABLE/MATAATLANTICA/MA_amostras_estaveis85a24_col10_v'+versao_estavel);
+// Add the stable map layer to the map.
+Map.addLayer(mapa_estavel, vis, 'mapa_estavel_col10', false);
+// Print the stable map image to the console.
+print('mapa estavel',mapa_estavel);
+
+
+// Import the biomes image and mask the Atlantic Forest biome.
+var biomes = ee.Image('projects/mapbiomas-workspace/AUXILIAR/biomas-raster-41');
+var bioma250mil_MA = biomes.mask(biomes.eq(2)); // Atlantic forest biome
+
+// Add the Atlantic Forest biome layer to the map.
+Map.addLayer(bioma250mil_MA, {}, 'bioma250mil_MA', false);
+
+// Import the palettes module for visualization.
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+// Define visualization parameters for the stable map.
+var vis = {
+    'min': 0,
+    'max': 69,
+    'palette': palettes.get('classification9')
+};
+
+// Import the Atlantic Forest regions FeatureCollection.
+var regioesCollection = ee.FeatureCollection('projects/mapbiomas-workspace/AUXILIAR/Mata_Atlantica_Regioes2025');
+// Print the regions FeatureCollection to the console.
+print('regioesCollection', regioesCollection);
+// Add the regions FeatureCollection to the map.
+Map.addLayer(regioesCollection, {}, 'regioesCollection', false);
+
+
+// Define the number of samples for each class in different regions.
+var n_pr1 = 3000;   // main1      | principal1
+var n_se1 = 2000;   // secondary1 | secundária1
+var n_ra1 = 300;    // rare1      | rara1
+var zero1 = 0;      // zero1      | zero1
+
+var n_pr2 = 4000;   // main2      | principal2
+var n_se2 = 1000;   // secondary2 | secundária2
+var n_ra2 = 500;    // rare2      | rara2
+var zero2 = 0;      // zero2      | zero2
+
+// Define a list of regions and the number of samples for each class in each region.
+var regioes_lista = [//regiao,     3,    21,     4,     9,    11,    12,    50,    29,    22,     33],
+                    ['reg_01', n_se1, n_pr2, n_ra1,  n_ra1, zero1, n_ra2, zero1, n_ra1, n_ra2, n_ra1],
+                    ['reg_02', n_pr1, n_pr2, zero1,  n_ra1, zero1, zero1, n_ra1, zero1, n_ra1, n_ra1],
+                    ['reg_03', n_se1, n_pr2, zero1,  n_ra1, n_ra1, zero1, n_ra1, n_ra1, n_ra1, n_ra1],
+                    ['reg_04', n_pr1, n_pr1, zero1,  n_ra1, n_ra1, zero1, n_ra1, zero1, n_ra1, n_ra1],
+                    ['reg_05', n_pr1, n_pr1, zero1,  n_ra1, zero1, zero1, n_ra1, zero1, n_ra1, n_ra1],
+                    ['reg_06', n_se1, n_pr2, zero1,  n_ra1, zero1, zero1, zero1, zero1, n_ra1, n_ra1],
+                    ['reg_07', n_se1, n_pr2, zero1,  n_ra1, zero1, zero1, zero1, zero1, n_ra1, n_ra1],
+                    ['reg_08', n_se1, n_pr1, zero1,  n_ra1, zero1, zero1, zero1, zero1, n_ra1, n_ra1],
+                    ['reg_09', n_se1, n_pr2, n_ra1,  n_ra1, zero1, zero1, zero1, n_ra2, n_ra1, n_ra1],
+                    ['reg_10', n_se1, n_pr2, zero1,  n_ra1, n_ra1, zero1, zero1, zero1, n_ra1, n_ra1],
+                    ['reg_11', n_se1, n_pr1, zero1,  zero1, zero1, zero1, zero1, n_ra1, n_ra1, n_ra1],
+                    ['reg_12', n_se1, n_pr2, zero1,  n_ra1, n_ra1, zero1, zero1, zero1, n_ra1, n_ra1],
+                    ['reg_13', n_se1, n_pr2, zero1,  n_ra1, n_ra1, zero1, zero1, zero1, n_ra1, n_ra1],
+                    ['reg_14', n_se1, n_pr2, zero1,  n_ra1, n_ra1, zero1, zero1, zero1, n_ra1, n_ra1],
+                    ['reg_15', n_se1, n_pr2, zero1,  n_ra1, n_ra1, zero1, zero1, zero1, n_ra1, n_ra1],
+                    ['reg_16', n_se1, n_pr1, zero1,  n_ra1, n_ra1, zero1, n_ra1, n_ra1, n_ra1, n_ra1],
+                    ['reg_17', n_se1, n_pr2, zero1,  zero1, zero1, zero1, zero1, zero1, n_ra1, n_ra1],
+                    ['reg_18', n_se1, n_pr2, zero1,  n_ra1, n_ra1, zero1, zero1, zero1, n_ra1, n_ra1],
+                    ['reg_19', n_pr1, n_pr1, zero1,  n_ra1, n_ra1, zero1, n_ra1, n_ra1, n_ra1, n_ra1],
+                    ['reg_20', n_se1, n_pr2, zero1,  n_ra1, n_ra1, zero1, n_ra1, n_ra1, n_ra1, n_ra1],
+                    ['reg_21', n_se1, n_pr2, zero1,  n_ra1, zero1, zero1, n_ra1, zero1, n_ra1, n_ra1],
+                    ['reg_22', n_se1, n_pr2, n_se2,  zero1, zero1, zero1, zero1, zero1, n_ra1, n_ra1],
+                    ['reg_23', n_se1, n_pr1, n_se2,  n_ra1, zero1, zero1, zero1, n_ra2, n_ra1, n_ra1],
+                    ['reg_24', n_se1, n_se1, zero1,  zero1, zero1, n_pr1, zero1, n_ra1, n_ra1, n_ra1],
+                    ['reg_25', n_se1, n_pr2, zero1,  n_ra1, n_ra1, zero1, zero1, zero1, n_ra1, n_ra1],
+                    ['reg_26', n_se1, n_pr2, zero1,  n_ra1, n_ra1, n_ra1, zero1, zero1, n_ra1, n_ra1],
+                    ['reg_27', n_se1, n_pr2, n_se2,  zero1, n_ra1, zero1, zero1, zero1, n_ra1, n_ra1],
+                    ['reg_28', n_se1, n_pr1, zero1,  n_ra1, n_ra1, n_ra1, zero1, zero1, n_ra1, n_ra1],
+                    ['reg_29', n_se1, n_pr2, zero1,  n_ra1, n_ra1, zero1, zero1, zero1, n_ra1, n_ra1],
+                    ['reg_30', n_se1, n_pr1, zero1,  zero1, n_ra1, zero1, n_ra1, n_ra1, n_ra1, n_ra2],
+              ];
+
+// Loop through each region and create stratified samples.
+for (var i_regiao=0;i_regiao<regioes_lista.length; i_regiao++){
+  var lista = regioes_lista[i_regiao]; // Get the current region's data from the regioes_lista array.
+  var regiao = lista[0]; // Extract the region name from the current region's data.
+
+  // Filter the regioesCollection to get the geometry for the current region.
+  var limite = regioesCollection.filterMetadata('reg_id', "equals", regiao);
+
+  // Create a stratified sample of the mapa_estavel image for the current region.
+  var reg_training_estavel = mapa_estavel.stratifiedSample({
+    'numPoints': 0, // Set the number of points to 0, as the number of points per class is defined in 'classPoints'.
+    'classBand': 'reference', // Specify the band containing the class labels.
+    'region': limite, // Specify the region to sample.
+    // Specify the class values and the number of points to sample for each class.
+    'classValues': [       3,       21,         4,        9,       11,       12,       50,       29,       22,        33],
+    'classPoints': [lista[1], lista[2],  lista[3], lista[4], lista[5], lista[6], lista[7], lista[8],  lista[9],  lista[10]],
+    'scale': 30, // Set the scale of the sampling (in meters).
+    'seed': 1, // Set the random seed for reproducibility.
+    'geometries': true // Return geometries with the sample points.
+  });
+  
+  // Add the region ID to each feature in the stratified sample.
+  reg_training_estavel = reg_training_estavel.map(
+            function (feature) {
+                return feature.set('reg_id', regiao);
+            });
+
+  // Merge the stratified samples from the current region with the samples from previous regions.
+  // For the first region, initialize the training_estavel FeatureCollection.
+  if (i_regiao == 0){ 
+    var training_estavel = reg_training_estavel }  
+  // For subsequent regions, merge the new samples with the existing FeatureCollection.
+  else {
+    training_estavel = training_estavel.merge(reg_training_estavel); }
+}
+
+// Add the training samples FeatureCollection to the map.
+Map.addLayer(training_estavel, {}, 'training estavel', false);
+
+// Print the size of the training samples FeatureCollection to the console.
+print('training_estavel size', training_estavel.size());
+
+// Export the training samples FeatureCollection to an asset.
+Export.table.toAsset({
+  collection: training_estavel, 
+  description: 'MA_amostras_estratificadas_col'+colN+'_v'+versao_out,
+  assetId: dirout+'MA_amostras_estratificadas_col'+colN+'_v'+versao_out
+
+})
+

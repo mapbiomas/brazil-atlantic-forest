@@ -1,0 +1,177 @@
+/**
+ * PROJECT: MapBiomas - Atlantic Forest (Collection 11)
+ * OBJECTIVE: Remapping agriculture classes.
+ * 
+ * DESCRIPTION:
+ * This script remaps classes 9, 19 and 41 to 21.
+ * 
+ * Uses as input data from script 05-20.
+ * The output data from this script is used as an input in script 06-10.
+ * 
+ */
+
+// Define the geometry for the Atlantic Forest region.
+var limite_MA = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-48.593359954293625, -30.678347823900353],
+          [-47.275000579293625, -25.525376684152373],
+          [-40.595313079293625, -23.284530667538736],
+          [-33.915625579293625, -6.580343714417967],
+          [-35.453711516793625, -4.217995607905081],
+          [-44.198828704293625, -17.856203449528717],
+          [-50.483008391793625, -17.52126295946964],
+          [-55.712500579293625, -21.74193426005608],
+          [-55.492774016793625, -29.72888025446976]]]);
+    
+
+// Define parameters for the processing.
+var bioma       = "MATAATLANTICA";        // Biome name.
+var version_in   = '2';                    // Input version.
+var versao_out  = '3';                    // Output version.
+var descricao   = 'Agriculture Remap';    // Description of the process.
+var col         = 11.0;                   // Collection ID.
+var prefixo_in  = 'MA_col'+col+'_p05b_v'; // Input prefix.
+var prefixo_out = 'MA_col'+col+'_p05c_v'; // Output prefix.
+var dirout = 'projects/mapbiomas-brazil/assets/LAND-COVER/COLLECTION-'+col+'/GENERAL/classification-mat-ft/';
+//print(dirout);
+
+// Define the year and biome.
+var ano = 2020;
+var bioma = "MATAATLANTICA";
+
+// Import the palettes module.
+var palettes = require('users/mapbiomas/modules:Palettes.js');
+
+// Define the palettes for visualization.
+var vis = {'min': 0,'max': 69,'palette': palettes.get('classification9')};
+var vis2 = {'bands': 'classification_'+ano, 'min': 0,'max': 69,'palette': palettes.get('classification9')};
+
+// Define the years to process.
+var anos = ['1985','1986','1987','1988','1989','1990','1991','1992','1993','1994',
+            '1995','1996','1997','1998','1999','2000','2001','2002','2003','2004',
+            '2005','2006','2007','2008','2009','2010','2011','2012','2013','2014',
+            '2015','2016','2017','2018','2019','2020','2021','2022','2023','2024','2025'];
+
+// Load the classification image.
+var classGAP = ee.Image(dirout+'MA_col11_p05a_v1');//MA_col10_p05b_v3
+Map.addLayer(classGAP, vis2, 'classGAP');
+var classBLEND = ee.Image(dirout+prefixo_in+version_in);//MA_col10_p05b_v3
+print(classBLEND);
+Map.addLayer(classBLEND, vis2, 'classBLEND');
+
+// Loop through the years and blend the classification image with the agriculture images.
+for (var i_ano=0;i_ano<anos.length; i_ano++){  
+  var ano = anos[i_ano]; 
+  
+  // Add the original classification image to the map.
+  Map.addLayer(classBLEND.select('classification_'+ano), vis, 'class_orig_'+ano, false);
+
+  // Remap the classification values for the current year. (9, 19 and 41 > 21).
+  var class_ano = classBLEND.select('classification_'+ano).remap(
+       [3,4,11,12,13, 9,18,21,41,22,33,50],
+       [3,4,11,12,13,21,21,21,21,22,33,50]).rename('classification_'+ano);
+
+  // Combine the blended images for all years. Build the final image by adding bands for each year.
+  if (i_ano == 0){ 
+    var image = class_ano;
+    }  
+  else {
+    image = image.addBands(class_ano); 
+
+  }
+}
+
+//print(class_outTotal);
+
+// Add the final blendedv remapped image to the map.
+Map.addLayer(image, vis2, 'class_final');
+
+// Define the years to process.
+var years = [
+    1985,1986,1987,1988,1989,1990,1991,1992,1993,1994,
+    1995,1996,1997,1998,1999,2000,2001,2002,2003,2004,
+    2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,
+    2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025
+    ];
+
+// Create a list of band names.
+var bandNames = ee.List(
+    years.map(
+        function (year) {
+            return 'classification_' + String(year);
+        }
+    )
+);
+
+// Generate a histogram dictionary of band names and image band names.
+// Count the occurrences of each band.
+var bandsOccurrence = ee.Dictionary(
+    bandNames.cat(image.bandNames()).reduce(ee.Reducer.frequencyHistogram())
+);
+//print(bandsOccurrence);
+
+// Create a dictionary of bands with masked bands.
+var bandsDictionary = bandsOccurrence.map(
+    function (key, value) {
+        return ee.Image(
+            ee.Algorithms.If(
+                ee.Number(value).eq(2),
+                // If the band occurs twice, select the band from the original image.
+                image.select([key]).byte(),
+                // If the band occurs once, create a masked band.
+                ee.Image().rename([key]).byte().updateMask(image.select(0))
+            )
+        );
+    }
+);
+
+// Convert the dictionary to an image.
+// Combine all bands into a single image.
+var imageAllBands = ee.Image(
+    bandNames.iterate(
+        function (band, image) {
+            // Add the band from the dictionary to the image.
+            return ee.Image(image).addBands(bandsDictionary.get(ee.String(band)));
+        },
+        // Initialize the image with an empty selection.
+        ee.Image().select()
+    )
+);
+
+// Create an image with year information for each pixel.
+var imagePixelYear = ee.Image.constant(years)
+    .updateMask(imageAllBands)
+    .rename(bandNames);
+    
+// Add connected pixels bands.
+var imageFilledConnected = image.addBands(
+    image
+        .connectedPixelCount(100, true)
+        .rename(bandNames.map(
+            function (band) {
+                return ee.String(band).cat('_conn');
+            }
+        ))
+);
+//print(imageFilledConnected);
+
+// Set the metadata for the final classification image.
+imageFilledConnected = imageFilledConnected
+.set('territory', 'BRAZIL')
+.set('biome', 'MATAATLANTICA')
+.set('source', 'arcplan')
+.set('version', versao_out)
+.set('collection_id', col)
+.set('description', descricao);
+
+// Export the final classification image to an asset.
+Export.image.toAsset({
+    'image': imageFilledConnected,
+    'description': prefixo_out+versao_out,
+    'assetId': dirout+prefixo_out+versao_out,
+    'pyramidingPolicy': {
+        '.default': 'mode'
+    },
+    'region': limite_MA,
+    'scale': 30,
+    'maxPixels': 1e13
+});
